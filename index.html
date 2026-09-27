@@ -133,6 +133,7 @@
   .tag.open { background: rgba(245,158,11,0.12); color: #fbbf24; }
   .tag.near-stop { background: rgba(239,68,68,0.15); color: #f87171; }
   .tag.near-target { background: rgba(34,197,94,0.15); color: #4ade80; }
+  .tag.editing { background: rgba(59,130,246,0.15); color: #60a5fa; }
 
   .score-row { display: flex; align-items: center; gap: 10px; }
   .score-row .num { font-size: 0.72rem; color: var(--muted); min-width: 32px; font-weight: 600; }
@@ -153,6 +154,21 @@
     font-size: 0.72rem; font-weight: 700; text-transform: uppercase;
     letter-spacing: 0.8px; color: var(--dim); margin: 22px 0 10px;
   }
+  .section-header {
+    display: flex; justify-content: space-between;
+    align-items: center; margin: 22px 0 10px; gap: 10px;
+  }
+  .section-header .section-title { margin: 0; }
+  .section-header button {
+    padding: 6px 12px; font-size: 0.72rem;
+    background: var(--surface-2); color: var(--muted);
+    border: 1px solid var(--border);
+    font-weight: 600;
+  }
+  .section-header button:active { background: var(--surface); }
+  .section-header button.danger { color: #f87171; }
+  .section-header button.danger:active { background: rgba(239,68,68,0.1); }
+
   .block {
     background: var(--surface); border: 1px solid var(--border-soft);
     border-radius: var(--radius); padding: 16px; margin-bottom: 12px;
@@ -201,6 +217,8 @@
   }
   .trade.near-stop { border-color: rgba(239,68,68,0.4); }
   .trade.near-target { border-color: rgba(34,197,94,0.4); }
+  .trade.editing { border-color: var(--blue); }
+  .trade.closed { opacity: 0.85; }
   .trade .row1 {
     display: flex; justify-content: space-between;
     align-items: flex-start; gap: 10px; margin-bottom: 8px;
@@ -209,7 +227,9 @@
   .trade .pnl { font-weight: 700; font-size: 0.92rem; text-align: right; }
   .trade .details { font-size: 0.75rem; color: var(--muted); line-height: 1.65; }
   .trade .details .lbl { color: var(--dim); }
-  .trade .close-btn { margin-top: 10px; font-size: 0.75rem; padding: 7px 14px; }
+  .trade .details .units { color: var(--text); font-weight: 600; }
+  .trade .actions { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
+  .trade .actions button { font-size: 0.75rem; padding: 7px 14px; }
   .trade .del {
     position: absolute; top: 8px; right: 8px; background: transparent;
     border: none; color: var(--dim); font-size: 14px;
@@ -217,14 +237,14 @@
   }
   .trade .del:active { opacity: 1; color: var(--red); }
 
-  .close-form {
+  .close-form, .edit-form {
     margin-top: 12px; padding-top: 12px;
     border-top: 1px solid var(--border-soft);
   }
-  .close-form label { margin-bottom: 8px; }
+  .close-form label, .edit-form label { margin-bottom: 8px; }
   .close-form input { margin-bottom: 8px; }
-  .close-form-actions { display: flex; gap: 8px; }
-  .close-form-actions button { flex: 1; }
+  .form-actions { display: flex; gap: 8px; }
+  .form-actions button { flex: 1; }
 
   .del-confirm {
     margin-top: 10px; padding: 10px 12px;
@@ -235,6 +255,17 @@
   }
   .del-confirm span { flex: 1; }
   .del-confirm button { padding: 6px 10px; font-size: 0.72rem; }
+
+  .bulk-confirm {
+    margin: 10px 0 0; padding: 12px;
+    background: rgba(239,68,68,0.08);
+    border: 1px solid rgba(239,68,68,0.3);
+    border-radius: var(--radius-sm);
+    font-size: 0.82rem; color: var(--text);
+    line-height: 1.5;
+  }
+  .bulk-confirm .bulk-actions { display: flex; gap: 8px; margin-top: 10px; }
+  .bulk-confirm .bulk-actions button { flex: 1; padding: 8px; font-size: 0.78rem; }
 
   .stats-row { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-bottom: 12px; }
   .stat {
@@ -482,7 +513,12 @@
     <div class="section-title">Stats</div>
     <div class="stats-row" id="journalStats"></div>
     <div id="journalBreakdown"></div>
-    <div class="section-title">Trade history</div>
+
+    <div class="section-header">
+      <div class="section-title">Trade history</div>
+      <button class="danger hidden" id="clearClosedBtn">Clear closed</button>
+    </div>
+    <div id="bulkConfirmSlot"></div>
     <div id="journalList"></div>
   </section>
 
@@ -697,6 +733,13 @@ function price(n) {
   if (n >= 1) return '$' + n.toLocaleString(undefined, { maximumFractionDigits: 2 });
   if (n >= 0.01) return '$' + n.toFixed(4);
   return '$' + n.toFixed(8);
+}
+function units(n) {
+  if (n == null || !isFinite(n) || n <= 0) return '—';
+  if (n >= 1000) return n.toLocaleString(undefined, { maximumFractionDigits: 2 });
+  if (n >= 1) return n.toLocaleString(undefined, { maximumFractionDigits: 4 });
+  if (n >= 0.0001) return n.toFixed(6);
+  return n.toFixed(8);
 }
 function ch24(c) { return c.price_change_percentage_24h ?? 0; }
 function ch7(c) { return c.price_change_percentage_7d_in_currency ?? c.price_change_percentage_7d ?? 0; }
@@ -1204,7 +1247,7 @@ function autoFillTrade() {
   preview.innerHTML = `
     <b>${esc(c.name)}</b> · live ${price(entry)}<br>
     Stop ${(stopPct*100).toFixed(1)}% · Target +${(targetPct*100).toFixed(1)}% · R:R <span class="green">${rrr}:1</span><br>
-    Risk <b>${money(riskAmount)}</b> · Size <b>${money(posValue)}</b>`;
+    Risk <b>${money(riskAmount)}</b> · Size <b>${money(posValue)}</b> (<span class="green">${units(position)} ${esc(c.symbol.toUpperCase())}</span>)`;
 }
 
 function addTrade() {
@@ -1248,11 +1291,13 @@ function addTrade() {
 let closingTradeId = null;
 let closingExitValue = '';
 let deletingTradeId = null;
+let editingTradeId = null;
+let editDraft = null;
+let bulkConfirmOpen = false;
 
 function closeTradeManual(id) {
   const exit = parseFloat(closingExitValue);
   if (!exit || isNaN(exit) || exit <= 0) {
-    // Nothing typed — leave form open with a nudge.
     const inp = document.querySelector('.close-exit-input');
     if (inp) { inp.focus(); inp.style.borderColor = 'var(--red)'; }
     return;
@@ -1283,6 +1328,105 @@ function deleteTrade(id) {
   deletingTradeId = null;
   closingTradeId = null;
   closingExitValue = '';
+  if (editingTradeId === id) { editingTradeId = null; editDraft = null; }
+  renderJournal();
+}
+
+function clearClosedTrades() {
+  const trades = loadTrades();
+  const remaining = trades.filter(t => t.status === 'open');
+  const removed = trades.length - remaining.length;
+  if (removed === 0) return;
+  saveTrades(remaining);
+  bulkConfirmOpen = false;
+  deletingTradeId = null;
+  closingTradeId = null;
+  closingExitValue = '';
+  editingTradeId = null;
+  editDraft = null;
+  showBanner(`🗑️ Cleared ${removed} closed trade${removed !== 1 ? 's' : ''}`, 'info');
+  renderJournal();
+}
+
+function beginEditTrade(id) {
+  const trades = loadTrades();
+  const t = trades.find(x => x.id === id);
+  if (!t) return;
+  editingTradeId = id;
+  editDraft = {
+    coin: t.coin,
+    setup: t.setup,
+    entry: String(t.entry),
+    stop: String(t.stop),
+    target: String(t.target),
+    size: String(t.size || 0),
+    notes: t.notes || ''
+  };
+  closingTradeId = null;
+  deletingTradeId = null;
+  bulkConfirmOpen = false;
+  renderJournal();
+  setTimeout(() => {
+    const first = document.querySelector('.edit-field[data-field="coin"]');
+    if (first) first.focus();
+  }, 30);
+}
+
+function cancelEditTrade() {
+  editingTradeId = null;
+  editDraft = null;
+  renderJournal();
+}
+
+function saveEditedTrade(id) {
+  if (!editDraft) return;
+  const coin = String(editDraft.coin || '').trim().toUpperCase();
+  const setup = editDraft.setup === 'Pullback' ? 'Pullback' : 'Momentum';
+  const entry = parseFloat(editDraft.entry);
+  const stop = parseFloat(editDraft.stop);
+  const target = parseFloat(editDraft.target);
+  const size = parseFloat(editDraft.size) || 0;
+  const notes = String(editDraft.notes || '').trim();
+
+  if (!coin || !isFinite(entry) || !isFinite(stop) || !isFinite(target)) {
+    showBanner('⚠️ Fill coin, entry, stop, target', 'warn');
+    return;
+  }
+  if (!(stop < entry && entry < target)) {
+    showBanner('⚠️ Stop must be < entry < target', 'warn');
+    return;
+  }
+
+  const trades = loadTrades();
+  const idx = trades.findIndex(x => x.id === id);
+  if (idx === -1) return;
+  const t = trades[idx];
+
+  if (coin !== t.coin) {
+    const live = findCoinLive(coin);
+    t.coinId = live ? live.id : null;
+  }
+
+  t.coin = coin;
+  t.setup = setup;
+  t.entry = entry;
+  t.stop = stop;
+  t.target = target;
+  t.size = size;
+  t.notes = notes;
+
+  if (t.status === 'win' || t.status === 'loss') {
+    if (t.exit != null) {
+      t.pnl = computePnl(t, t.exit);
+      t.pnlPct = ((t.exit - t.entry) / t.entry) * 100;
+      t.status = t.pnl >= 0 ? 'win' : 'loss';
+    }
+  }
+
+  saveTrades(trades);
+  editingTradeId = null;
+  editDraft = null;
+  showBanner('✅ Trade updated', 'info');
   renderJournal();
 }
 
@@ -1372,6 +1516,33 @@ function renderJournal() {
   }
   $('journalBreakdown').innerHTML = bd;
 
+  // Bulk clear button — only when there are closed trades
+  const closedCount = trades.filter(t => t.status === 'win' || t.status === 'loss').length;
+  const clearBtn = $('clearClosedBtn');
+  if (closedCount > 0) {
+    clearBtn.classList.remove('hidden');
+    clearBtn.textContent = `🗑️ Clear ${closedCount} closed`;
+  } else {
+    clearBtn.classList.add('hidden');
+  }
+
+  // Bulk confirm banner
+  const bulkSlot = $('bulkConfirmSlot');
+  if (bulkConfirmOpen && closedCount > 0) {
+    bulkSlot.innerHTML = `
+      <div class="bulk-confirm">
+        <b>Delete all ${closedCount} closed trades?</b><br>
+        This removes every Win and Loss from the journal. Open trades are kept.
+        This cannot be undone.
+        <div class="bulk-actions">
+          <button class="ghost small bulk-cancel">Cancel</button>
+          <button class="small bulk-confirm-yes" style="background:var(--red)">Yes, delete them</button>
+        </div>
+      </div>`;
+  } else {
+    bulkSlot.innerHTML = '';
+  }
+
   const listEl = $('journalList');
   if (!trades.length) {
     listEl.innerHTML = '<div class="empty">No trades logged yet.<br>Type a coin above to start.</div>';
@@ -1382,6 +1553,8 @@ function renderJournal() {
   listEl.innerHTML = trades.map(t => {
     const live = findCoinLive(t.coin, t.coinId);
     const livePrice = live ? live.current_price : null;
+    const isClosed = t.status === 'win' || t.status === 'loss';
+
     let statusTag = '<span class="tag open">Open</span>';
     if (t.status === 'win') statusTag = '<span class="tag win">Win</span>';
     if (t.status === 'loss') statusTag = '<span class="tag loss">Loss</span>';
@@ -1402,38 +1575,83 @@ function renderJournal() {
       else if (livePrice < t.target && toTarget <= threshold) { nearClass = 'near-target'; nearTag = '<span class="tag near-target">🎯 Near target</span>'; }
     }
 
+    const computedUnits = t.entry > 0 && t.size > 0 ? t.size / t.entry : 0;
+    const unitsText = computedUnits > 0 ? `${units(computedUnits)} ${esc(t.coin)}` : '—';
+
     const isClosing = closingTradeId === t.id;
     const isDeleting = deletingTradeId === t.id;
+    const isEditing = editingTradeId === t.id;
 
     return `
-      <div class="trade ${nearClass}">
-        <button class="del" data-id="${t.id}" aria-label="Delete trade">✕</button>
+      <div class="trade ${nearClass} ${isEditing ? 'editing' : ''} ${isClosed ? 'closed' : ''}">
+        <button class="del" data-id="${t.id}" aria-label="Delete trade" ${isEditing ? 'style="display:none"' : ''}>✕</button>
         <div class="row1">
           <div>
             <span class="pair">${esc(t.coin)}</span>
             <span class="tag ${t.setup === 'Momentum' ? 'momentum' : 'pullback'}">${esc(t.setup)}</span>
-            ${statusTag}${nearTag}
+            ${statusTag}${nearTag}${isEditing ? '<span class="tag editing">Editing</span>' : ''}
           </div>
           ${pnlText}
         </div>
         <div class="details">
           <span class="lbl">Entry</span> ${price(t.entry)} · <span class="lbl">Stop</span> ${price(t.stop)} · <span class="lbl">Target</span> ${price(t.target)}<br>
+          <span class="lbl">Units</span> <span class="units">${unitsText}</span> · <span class="lbl">Size</span> ${t.size ? money(t.size) : '—'}<br>
           ${t.exit ? `<span class="lbl">Exit</span> ${price(t.exit)}${t.autoClosed ? ' <span style="color:var(--dim)">auto</span>' : ''}<br>` : ''}
           ${livePrice && t.status === 'open' ? `<span class="lbl">Live</span> ${price(livePrice)}<br>` : ''}
           ${t.notes ? `📝 ${esc(t.notes)}` : ''}
         </div>
-        ${t.status === 'open' && !isClosing ? `<button class="ghost small close-btn" data-id="${t.id}">Close trade</button>` : ''}
+
+        ${!isEditing && !isClosing && !isDeleting ? `
+          <div class="actions">
+            ${t.status === 'open' ? `<button class="ghost small close-btn" data-id="${t.id}">Close trade</button>` : ''}
+            <button class="ghost small edit-btn" data-id="${t.id}">Edit</button>
+          </div>` : ''}
+
+        ${isEditing ? `
+          <div class="edit-form">
+            <div class="field-row">
+              <div><label>Coin</label>
+                <input type="text" class="edit-field" data-field="coin" autocapitalize="characters" value="${esc(editDraft.coin)}" /></div>
+              <div><label>Setup</label>
+                <select class="edit-field" data-field="setup">
+                  <option value="Momentum" ${editDraft.setup === 'Momentum' ? 'selected' : ''}>🚀 Momentum</option>
+                  <option value="Pullback" ${editDraft.setup === 'Pullback' ? 'selected' : ''}>📉 Pullback</option>
+                </select></div>
+            </div>
+            <div class="field-row">
+              <div><label>Entry</label>
+                <input type="number" step="any" class="edit-field" data-field="entry" value="${esc(editDraft.entry)}" /></div>
+              <div><label>Stop</label>
+                <input type="number" step="any" class="edit-field" data-field="stop" value="${esc(editDraft.stop)}" /></div>
+            </div>
+            <div class="field-row">
+              <div><label>Target</label>
+                <input type="number" step="any" class="edit-field" data-field="target" value="${esc(editDraft.target)}" /></div>
+              <div><label>Size (USD)</label>
+                <input type="number" step="any" class="edit-field" data-field="size" value="${esc(editDraft.size)}" /></div>
+            </div>
+            <div class="field">
+              <label>Notes</label>
+              <textarea class="edit-field" data-field="notes" placeholder="Why this trade?">${esc(editDraft.notes)}</textarea>
+            </div>
+            <div class="form-actions">
+              <button class="ghost small edit-cancel">Cancel</button>
+              <button class="small edit-save" data-id="${t.id}">Save changes</button>
+            </div>
+          </div>` : ''}
+
         ${isClosing ? `
           <div class="close-form">
             <label>Exit price</label>
             <input type="number" class="close-exit-input" step="any"
               value="${esc(closingExitValue)}"
               placeholder="${livePrice ? price(livePrice) : price(t.entry)}" />
-            <div class="close-form-actions">
+            <div class="form-actions">
               <button class="ghost small close-cancel">Cancel</button>
               <button class="small close-confirm" data-id="${t.id}">Confirm close</button>
             </div>
           </div>` : ''}
+
         ${isDeleting ? `
           <div class="del-confirm">
             <span>Delete this trade?</span>
@@ -1509,7 +1727,7 @@ function calcRisk() {
   out.innerHTML = `
     Max loss <b>${money(riskAmount)}</b><br>
     Stop distance <b>${stopPct.toFixed(2)}%</b><br>
-    Position <b>${position.toLocaleString(undefined, { maximumFractionDigits: 6 })} units</b><br>
+    Position <b>${units(position)} units</b><br>
     Value <b>${money(posValue)}</b>`;
 }
 
@@ -1779,7 +1997,6 @@ function cleanupDetailChart() {
 function exitDetail(to = 'scan') {
   if (!currentDetailSymbol) { switchView(to); return; }
   if (detailPushedState) {
-    // Going back through history; popstate will finish the job.
     leavingDetailTo = to;
     detailPushedState = false;
     try { history.back(); return; } catch (e) {}
@@ -1796,7 +2013,6 @@ function openJournalForDetailCoin() {
     leavingDetailTo = 'journal';
     detailPushedState = false;
     try { history.back(); } catch (e) {}
-    // If history.back() is unavailable, finish immediately.
     if (leavingDetailTo === 'journal' && currentDetailSymbol) {
       cleanupDetailChart();
       switchView('journal');
@@ -1884,12 +2100,36 @@ $('cRisk').addEventListener('input', onRiskAccountInput);
 
 $('jAddBtn').addEventListener('click', addTrade);
 
+// Clear closed — toggle confirmation
+$('clearClosedBtn').addEventListener('click', () => {
+  bulkConfirmOpen = !bulkConfirmOpen;
+  editingTradeId = null; editDraft = null;
+  closingTradeId = null; deletingTradeId = null;
+  renderJournal();
+});
+
+// Bulk confirm buttons live inside #bulkConfirmSlot
+$('bulkConfirmSlot').addEventListener('click', e => {
+  if (e.target.closest('.bulk-cancel')) {
+    bulkConfirmOpen = false;
+    renderJournal();
+    return;
+  }
+  if (e.target.closest('.bulk-confirm-yes')) {
+    clearClosedTrades();
+    return;
+  }
+});
+
 $('journalList').addEventListener('click', e => {
+  // Delete confirm/cancel
   const del = e.target.closest('.del');
   if (del) {
     const id = Number(del.dataset.id);
     deletingTradeId = deletingTradeId === id ? null : id;
     closingTradeId = null;
+    editingTradeId = null; editDraft = null;
+    bulkConfirmOpen = false;
     renderJournal();
     return;
   }
@@ -1899,13 +2139,15 @@ $('journalList').addEventListener('click', e => {
   const delYes = e.target.closest('.del-yes');
   if (delYes) { deleteTrade(Number(delYes.dataset.id)); return; }
 
+  // Close form
   const closeBtn = e.target.closest('.close-btn');
   if (closeBtn) {
     closingTradeId = Number(closeBtn.dataset.id);
     closingExitValue = '';
     deletingTradeId = null;
+    editingTradeId = null; editDraft = null;
+    bulkConfirmOpen = false;
     renderJournal();
-    // Focus the exit input for convenience.
     setTimeout(() => {
       const inp = document.querySelector('.close-exit-input');
       if (inp) inp.focus();
@@ -1917,13 +2159,35 @@ $('journalList').addEventListener('click', e => {
 
   const closeConfirm = e.target.closest('.close-confirm');
   if (closeConfirm) { closeTradeManual(Number(closeConfirm.dataset.id)); return; }
+
+  // Edit form
+  const editBtn = e.target.closest('.edit-btn');
+  if (editBtn) { beginEditTrade(Number(editBtn.dataset.id)); return; }
+
+  const editCancel = e.target.closest('.edit-cancel');
+  if (editCancel) { cancelEditTrade(); return; }
+
+  const editSave = e.target.closest('.edit-save');
+  if (editSave) { saveEditedTrade(Number(editSave.dataset.id)); return; }
 });
 
 $('journalList').addEventListener('input', e => {
-  const inp = e.target.closest('.close-exit-input');
-  if (inp) {
-    closingExitValue = inp.value;
-    inp.style.borderColor = '';
+  const editInput = e.target.closest('.edit-field');
+  if (editInput && editDraft) {
+    editDraft[editInput.dataset.field] = editInput.value;
+    return;
+  }
+  const closeInp = e.target.closest('.close-exit-input');
+  if (closeInp) {
+    closingExitValue = closeInp.value;
+    closeInp.style.borderColor = '';
+  }
+});
+
+$('journalList').addEventListener('change', e => {
+  const editInput = e.target.closest('.edit-field');
+  if (editInput && editDraft) {
+    editDraft[editInput.dataset.field] = editInput.value;
   }
 });
 
