@@ -1,0 +1,19 @@
+{
+  "name": "Crypto Scanner",
+  "short_name": "Scanner",
+  "description": "Live crypto setup scanner with journal, alerts and risk calculator.",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0a0d12",
+  "theme_color": "#0a0d12",
+  "icons": [
+    {
+      "src": "icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

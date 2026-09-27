@@ -1,0 +1,1459 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#0a0d12">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" type="image/svg+xml" href="icon.svg">
+<title>Crypto Scanner</title>
+<style>
+  :root {
+    --bg: #0a0d12;
+    --surface: #131720;
+    --surface-2: #1a1f2b;
+    --border: #222838;
+    --border-soft: #1a1f2b;
+    --text: #e8eaed;
+    --muted: #8a94a6;
+    --dim: #5a6577;
+    --blue: #3b82f6;
+    --green: #22c55e;
+    --red: #ef4444;
+    --amber: #f59e0b;
+    --radius: 14px;
+    --radius-sm: 10px;
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    font-size: 15px;
+    line-height: 1.45;
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+
+  header {
+    padding: 20px 18px 12px;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 12px;
+  }
+  header h1 { font-size: 1.1rem; font-weight: 700; margin: 0; letter-spacing: -0.2px; }
+  header .sub { font-size: 0.75rem; color: var(--muted); margin-top: 3px; }
+  #refreshBtn {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    color: var(--text);
+    width: 38px;
+    height: 38px;
+    border-radius: 50%;
+    font-size: 17px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    flex-shrink: 0;
+  }
+  #refreshBtn:active { background: var(--surface-2); }
+  #refreshBtn.spin { animation: spin 0.8s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  main { padding: 0 18px 100px; min-height: 60vh; }
+  .view { display: none; }
+  .view.active { display: block; animation: fadeIn 0.2s ease; }
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+
+  #status { font-size: 0.72rem; color: var(--dim); text-align: center; padding: 4px 0 14px; }
+
+  .chips {
+    display: flex; gap: 6px; overflow-x: auto; padding: 0 0 14px;
+    scrollbar-width: none; margin: 0 -18px;
+    padding-left: 18px; padding-right: 18px;
+  }
+  .chips::-webkit-scrollbar { display: none; }
+  .chip {
+    flex: 0 0 auto; padding: 8px 14px; border-radius: 20px;
+    background: var(--surface); border: 1px solid var(--border);
+    color: var(--muted); font-size: 0.82rem; font-weight: 500;
+    white-space: nowrap; transition: all 0.15s;
+  }
+  .chip.active { background: var(--blue); border-color: var(--blue); color: #fff; font-weight: 600; }
+
+  .search-wrap { position: relative; margin-bottom: 14px; }
+  .search-wrap input {
+    width: 100%; padding: 11px 14px 11px 38px;
+    border-radius: var(--radius-sm); border: 1px solid var(--border);
+    background: var(--surface); color: var(--text);
+    font-size: 0.9rem; font-family: inherit;
+  }
+  .search-wrap input::placeholder { color: var(--dim); }
+  .search-wrap::before {
+    content: '🔍'; position: absolute; left: 13px; top: 50%;
+    transform: translateY(-50%); font-size: 0.85rem; opacity: 0.5; pointer-events: none;
+  }
+
+  .coin-card {
+    background: var(--surface); border: 1px solid var(--border-soft);
+    border-radius: var(--radius); padding: 16px; margin-bottom: 10px;
+    transition: border-color 0.15s;
+  }
+  .coin-card.highlight { border-color: var(--blue); }
+  .coin-card .top {
+    display: flex; justify-content: space-between;
+    align-items: flex-start; gap: 10px; margin-bottom: 12px;
+  }
+  .coin-card .name { font-size: 1rem; font-weight: 700; letter-spacing: -0.1px; }
+  .coin-card .symbol { font-size: 0.75rem; color: var(--muted); margin-top: 2px; letter-spacing: 0.3px; }
+  .coin-card .right { text-align: right; }
+  .coin-card .price { font-size: 1.15rem; font-weight: 700; letter-spacing: -0.2px; }
+  .coin-card .change { font-size: 0.82rem; font-weight: 600; margin-top: 2px; }
+  .up { color: var(--green); } .down { color: var(--red); } .flat { color: var(--muted); }
+
+  .coin-card .metrics {
+    display: flex; gap: 16px; font-size: 0.78rem;
+    color: var(--muted); margin-bottom: 12px;
+  }
+  .coin-card .metrics span { color: var(--text); font-weight: 600; }
+  .coin-card .tags { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
+  .tag {
+    font-size: 0.68rem; padding: 3px 9px; border-radius: 6px;
+    font-weight: 600; letter-spacing: 0.2px;
+  }
+  .tag.momentum { background: rgba(245,158,11,0.12); color: #fbbf24; }
+  .tag.pullback { background: rgba(59,130,246,0.12); color: #60a5fa; }
+  .tag.win { background: rgba(34,197,94,0.12); color: #4ade80; }
+  .tag.loss { background: rgba(239,68,68,0.12); color: #f87171; }
+  .tag.open { background: rgba(245,158,11,0.12); color: #fbbf24; }
+  .tag.near-stop { background: rgba(239,68,68,0.15); color: #f87171; }
+  .tag.near-target { background: rgba(34,197,94,0.15); color: #4ade80; }
+
+  .score-row { display: flex; align-items: center; gap: 10px; }
+  .score-row .num { font-size: 0.72rem; color: var(--muted); min-width: 32px; font-weight: 600; }
+  .score-bar { flex: 1; height: 5px; background: var(--bg); border-radius: 3px; overflow: hidden; }
+  .score-fill { height: 100%; border-radius: 3px; transition: width 0.4s ease; }
+
+  .empty { text-align: center; padding: 50px 20px; color: var(--muted); font-size: 0.88rem; line-height: 1.6; }
+  .empty .emoji { font-size: 2rem; display: block; margin-bottom: 12px; opacity: 0.6; }
+
+  .banner {
+    background: var(--surface); border-left: 3px solid var(--blue);
+    border-radius: 8px; padding: 12px 14px; font-size: 0.8rem;
+    color: var(--muted); line-height: 1.55; margin-bottom: 14px;
+  }
+  .banner b { color: var(--text); }
+
+  .section-title {
+    font-size: 0.72rem; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 0.8px; color: var(--dim); margin: 22px 0 10px;
+  }
+  .block {
+    background: var(--surface); border: 1px solid var(--border-soft);
+    border-radius: var(--radius); padding: 16px; margin-bottom: 12px;
+  }
+  .block h3 {
+    font-size: 0.9rem; margin: 0 0 14px; font-weight: 600;
+    display: flex; justify-content: space-between; align-items: center;
+  }
+  .block h3 .hint { font-size: 0.72rem; color: var(--dim); font-weight: 400; }
+
+  input[type="text"], input[type="number"], select, textarea {
+    width: 100%; padding: 11px 13px; border-radius: var(--radius-sm);
+    border: 1px solid var(--border); background: var(--bg); color: var(--text);
+    font-size: 0.92rem; font-family: inherit; transition: border-color 0.15s;
+  }
+  input:focus, select:focus, textarea:focus { outline: none; border-color: var(--blue); }
+  textarea { resize: vertical; min-height: 60px; }
+  label { display: block; font-size: 0.72rem; color: var(--muted); margin-bottom: 6px; font-weight: 500; }
+  .field { margin-bottom: 12px; }
+  .field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+
+  button {
+    padding: 12px 16px; border: none; border-radius: var(--radius-sm);
+    background: var(--blue); color: #fff; font-weight: 600;
+    font-size: 0.9rem; font-family: inherit; transition: opacity 0.15s;
+  }
+  button:active { opacity: 0.85; }
+  button.ghost { background: var(--surface-2); color: var(--text); }
+  button.green { background: var(--green); }
+  button.full { width: 100%; }
+  button.small { padding: 8px 12px; font-size: 0.78rem; }
+
+  .preview {
+    background: var(--bg); border: 1px solid var(--border);
+    border-radius: var(--radius-sm); padding: 14px;
+    margin: 12px 0; font-size: 0.82rem; line-height: 1.7; color: var(--muted);
+  }
+  .preview b { color: var(--text); }
+  .preview .green { color: var(--green); font-weight: 600; }
+  .preview .red { color: var(--red); font-weight: 600; }
+
+  .trade {
+    background: var(--surface); border: 1px solid var(--border-soft);
+    border-radius: var(--radius); padding: 14px; margin-bottom: 10px;
+    position: relative;
+  }
+  .trade.near-stop { border-color: rgba(239,68,68,0.4); }
+  .trade.near-target { border-color: rgba(34,197,94,0.4); }
+  .trade .row1 {
+    display: flex; justify-content: space-between;
+    align-items: flex-start; gap: 10px; margin-bottom: 8px;
+  }
+  .trade .pair { font-size: 0.95rem; font-weight: 700; margin-right: 6px; }
+  .trade .pnl { font-weight: 700; font-size: 0.92rem; text-align: right; }
+  .trade .details { font-size: 0.75rem; color: var(--muted); line-height: 1.65; }
+  .trade .details .lbl { color: var(--dim); }
+  .trade .close-btn { margin-top: 10px; font-size: 0.75rem; padding: 7px 14px; }
+  .trade .del {
+    position: absolute; top: 8px; right: 8px; background: transparent;
+    border: none; color: var(--dim); font-size: 14px;
+    padding: 6px; width: auto; opacity: 0.5;
+  }
+  .trade .del:active { opacity: 1; color: var(--red); }
+
+  .stats-row { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-bottom: 12px; }
+  .stat {
+    background: var(--surface); border: 1px solid var(--border-soft);
+    border-radius: var(--radius-sm); padding: 12px 10px; text-align: center;
+  }
+  .stat .val { font-size: 1.05rem; font-weight: 700; letter-spacing: -0.3px; }
+  .stat .lbl {
+    font-size: 0.6rem; color: var(--dim); text-transform: uppercase;
+    letter-spacing: 0.5px; margin-top: 4px; font-weight: 600;
+  }
+
+  .insight {
+    background: var(--surface); border: 1px solid var(--border-soft);
+    border-radius: var(--radius); padding: 16px; font-size: 0.85rem;
+    line-height: 1.7; color: #b8c1d1; margin-bottom: 14px;
+  }
+  .insight .title {
+    font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.8px;
+    color: var(--dim); font-weight: 700; margin-bottom: 10px;
+  }
+  .insight b { color: var(--text); }
+  .insight .good { color: var(--green); font-weight: 600; }
+  .insight .bad { color: var(--red); font-weight: 600; }
+  .insight .hl { color: #60a5fa; font-weight: 600; }
+
+  .bd-row {
+    display: flex; justify-content: space-between;
+    padding: 9px 0; font-size: 0.82rem;
+    border-bottom: 1px solid var(--border-soft);
+  }
+  .bd-row:last-child { border-bottom: none; }
+  .bd-row .k { color: var(--muted); }
+  .bd-row .v { font-weight: 600; }
+
+  .switch-row {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 14px 0; border-bottom: 1px solid var(--border-soft); gap: 14px;
+  }
+  .switch-row:last-child { border-bottom: none; }
+  .switch-row .txt { flex: 1; min-width: 0; }
+  .switch-row .label { font-size: 0.9rem; color: var(--text); font-weight: 500; }
+  .switch-row .desc { font-size: 0.72rem; color: var(--dim); margin-top: 3px; }
+  .switch {
+    position: relative; width: 44px; height: 26px;
+    background: var(--surface-2); border-radius: 13px;
+    flex-shrink: 0; transition: background 0.2s; cursor: pointer;
+  }
+  .switch::after {
+    content: ''; position: absolute; top: 3px; left: 3px;
+    width: 20px; height: 20px; background: #fff;
+    border-radius: 50%; transition: left 0.2s;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+  }
+  .switch.on { background: var(--blue); }
+  .switch.on::after { left: 21px; }
+  .switch:focus-visible { outline: 2px solid var(--blue); outline-offset: 3px; }
+
+  .perm-pill {
+    display: inline-block; padding: 3px 9px; border-radius: 6px;
+    font-size: 0.68rem; font-weight: 700; letter-spacing: 0.3px;
+    text-transform: uppercase; margin-left: 8px;
+  }
+  .perm-granted { background: rgba(34,197,94,0.15); color: #4ade80; }
+  .perm-denied { background: rgba(239,68,68,0.15); color: #f87171; }
+  .perm-default { background: rgba(245,158,11,0.15); color: #fbbf24; }
+
+  .log-item {
+    padding: 12px; background: var(--bg); border-radius: 8px;
+    border-left: 3px solid var(--blue); margin-bottom: 8px;
+    font-size: 0.8rem; line-height: 1.5; color: var(--muted);
+  }
+  .log-item.win { border-left-color: var(--green); }
+  .log-item.loss { border-left-color: var(--red); }
+  .log-item.warn { border-left-color: var(--amber); }
+  .log-item .title { color: var(--text); font-weight: 600; }
+  .log-item .time { font-size: 0.68rem; color: var(--dim); margin-top: 4px; }
+
+  #alertBanner {
+    position: fixed; top: -120px; left: 12px; right: 12px;
+    padding: 14px 16px; color: #fff; font-size: 0.85rem;
+    font-weight: 600; text-align: center; z-index: 9999;
+    transition: top 0.35s cubic-bezier(0.4,0,0.2,1);
+    border-radius: var(--radius); line-height: 1.4;
+    box-shadow: 0 6px 24px rgba(0,0,0,0.4);
+  }
+  #alertBanner.show { top: 12px; }
+  #alertBanner.win { background: #16a34a; }
+  #alertBanner.loss { background: #dc2626; }
+  #alertBanner.warn { background: #d97706; }
+  #alertBanner.info { background: var(--blue); }
+
+  nav {
+    position: fixed; bottom: 0; left: 0; right: 0;
+    background: var(--surface); border-top: 1px solid var(--border);
+    display: flex; padding: 8px 8px calc(8px + env(safe-area-inset-bottom));
+    z-index: 100; backdrop-filter: blur(12px);
+  }
+  nav button {
+    flex: 1; background: transparent; border: none;
+    padding: 8px 4px; border-radius: var(--radius-sm);
+    color: var(--dim); font-size: 0.68rem; font-weight: 600;
+    display: flex; flex-direction: column; align-items: center;
+    gap: 3px; letter-spacing: 0.3px; position: relative;
+  }
+  nav button .ico { font-size: 1.15rem; line-height: 1; }
+  nav button.active { color: var(--blue); background: rgba(59,130,246,0.08); }
+  nav button .badge-dot {
+    position: absolute; top: 6px; right: 24%;
+    width: 7px; height: 7px; background: var(--red);
+    border-radius: 50%; border: 2px solid var(--surface);
+  }
+  nav button .badge-dot.hidden { display: none; }
+
+  .hidden { display: none !important; }
+</style>
+</head>
+<body>
+
+<div id="alertBanner"></div>
+
+<header>
+  <div>
+    <h1>Crypto Scanner</h1>
+    <div class="sub" id="status">Loading…</div>
+  </div>
+  <button id="refreshBtn" aria-label="Refresh">↻</button>
+</header>
+
+<main>
+
+  <!-- SCAN VIEW -->
+  <section class="view active" id="view-scan">
+    <div class="chips" id="filterChips">
+      <button class="chip active" data-filter="winners" aria-pressed="true">🏆 Winners</button>
+      <button class="chip" data-filter="momentum" aria-pressed="false">🚀 Momentum</button>
+      <button class="chip" data-filter="pullback" aria-pressed="false">📉 Pullback</button>
+      <button class="chip" data-filter="all" aria-pressed="false">All Coins</button>
+    </div>
+    <div class="search-wrap">
+      <input type="text" id="search" placeholder="Search BTC, ETH, SOL…" />
+    </div>
+    <div id="coinList"></div>
+  </section>
+
+  <!-- JOURNAL VIEW -->
+  <section class="view" id="view-journal">
+    <div class="block">
+      <h3>Account <span class="hint">saved automatically</span></h3>
+      <div class="field-row">
+        <div>
+          <label>Balance (USD)</label>
+          <input type="number" id="jBalance" value="100" step="any" />
+        </div>
+        <div>
+          <label>Risk per trade (%)</label>
+          <input type="number" id="jRiskPct" value="1" step="0.5" />
+        </div>
+      </div>
+    </div>
+
+    <div class="block">
+      <h3>Log a trade <span class="hint">auto-fills</span></h3>
+      <div class="field-row">
+        <div>
+          <label>Coin</label>
+          <input type="text" id="jCoin" placeholder="BTC" autocapitalize="characters" />
+        </div>
+        <div>
+          <label>Setup</label>
+          <select id="jSetup">
+            <option value="Momentum">🚀 Momentum</option>
+            <option value="Pullback">📉 Pullback</option>
+          </select>
+        </div>
+      </div>
+      <div class="preview" id="jPreview">Type a coin symbol and the trade fills in automatically.</div>
+      <div class="field-row">
+        <div><label>Entry</label><input type="number" id="jEntry" step="any" /></div>
+        <div><label>Stop</label><input type="number" id="jStop" step="any" /></div>
+      </div>
+      <div class="field-row">
+        <div><label>Target</label><input type="number" id="jTarget" step="any" /></div>
+        <div><label>Size (USD)</label><input type="number" id="jSize" step="any" /></div>
+      </div>
+      <div class="field">
+        <label>Notes</label>
+        <textarea id="jNotes" placeholder="Why this trade?"></textarea>
+      </div>
+      <button class="full" id="jAddBtn">Save Trade</button>
+    </div>
+
+    <div id="journalInsight"></div>
+    <div class="section-title">Stats</div>
+    <div class="stats-row" id="journalStats"></div>
+    <div id="journalBreakdown"></div>
+    <div class="section-title">Trade history</div>
+    <div id="journalList"></div>
+  </section>
+
+  <!-- ALERTS VIEW -->
+  <section class="view" id="view-alerts">
+    <div class="block">
+      <h3>Permission
+        <span class="perm-pill perm-default" id="permStatus">Unknown</span>
+      </h3>
+      <p style="font-size:0.8rem;color:var(--muted);margin:0 0 12px;line-height:1.6">
+        Grant notification permission so alerts appear in your phone's notification shade.
+      </p>
+      <button class="full green" id="grantPermBtn">Grant permission</button>
+      <button class="full ghost" id="testAlertBtn" style="margin-top:8px">🔊 Send test alert</button>
+    </div>
+
+    <div class="block">
+      <h3>Alert types</h3>
+      <div class="switch-row">
+        <div class="txt"><div class="label">Master switch</div>
+          <div class="desc">Turn all alerts on or off</div></div>
+        <div class="switch" id="sw_enabled" role="switch" tabindex="0" aria-checked="false" aria-label="Master switch"></div>
+      </div>
+      <div class="switch-row">
+        <div class="txt"><div class="label">🔊 Sound</div>
+          <div class="desc">Play a tone when an alert fires</div></div>
+        <div class="switch" id="sw_sound" role="switch" tabindex="0" aria-checked="false" aria-label="Sound"></div>
+      </div>
+      <div class="switch-row">
+        <div class="txt"><div class="label">📳 Vibration</div>
+          <div class="desc">Vibrate on alert</div></div>
+        <div class="switch" id="sw_vibrate" role="switch" tabindex="0" aria-checked="false" aria-label="Vibration"></div>
+      </div>
+      <div class="switch-row">
+        <div class="txt"><div class="label">📱 Notification bar</div>
+          <div class="desc">Push to Android notifications</div></div>
+        <div class="switch" id="sw_notify" role="switch" tabindex="0" aria-checked="false" aria-label="Notification bar"></div>
+      </div>
+      <div class="switch-row">
+        <div class="txt"><div class="label">⚠️ Near stop-loss</div>
+          <div class="desc">Warn before price hits stop</div></div>
+        <div class="switch" id="sw_nearStop" role="switch" tabindex="0" aria-checked="false" aria-label="Near stop-loss"></div>
+      </div>
+      <div class="switch-row">
+        <div class="txt"><div class="label">🎯 Near target</div>
+          <div class="desc">Warn before price hits target</div></div>
+        <div class="switch" id="sw_nearTarget" role="switch" tabindex="0" aria-checked="false" aria-label="Near target"></div>
+      </div>
+      <div class="switch-row">
+        <div class="txt"><div class="label">✅ Trade closed</div>
+          <div class="desc">Alert on auto-close (win or loss)</div></div>
+        <div class="switch" id="sw_onClose" role="switch" tabindex="0" aria-checked="false" aria-label="Trade closed"></div>
+      </div>
+      <div class="switch-row">
+        <div class="txt"><div class="label">🏆 New setup</div>
+          <div class="desc">Alert when a fresh opportunity appears</div></div>
+        <div class="switch" id="sw_onSetup" role="switch" tabindex="0" aria-checked="false" aria-label="New setup"></div>
+      </div>
+    </div>
+
+    <div class="block">
+      <h3>Warning distance</h3>
+      <label>% away from stop/target to trigger warning (0 disables)</label>
+      <input type="number" id="nearThreshold" value="0.5" step="0.1" min="0" max="5" />
+    </div>
+
+    <div class="block">
+      <h3>Alert history</h3>
+      <button class="ghost small" id="clearLogBtn" style="margin-bottom:12px">Clear history</button>
+      <div id="alertLog"></div>
+    </div>
+
+    <div class="banner">
+      <b>Heads up:</b> Alerts fire while this tab is open. For notification-shade push, host this app over HTTPS (e.g. Netlify Drop) and add it to your home screen.
+    </div>
+  </section>
+
+  <!-- RISK VIEW -->
+  <section class="view" id="view-risk">
+    <div class="block">
+      <h3>Position size calculator</h3>
+      <div class="field"><label>Account balance (USD)</label>
+        <input type="number" id="cBalance" value="100" step="any" /></div>
+      <div class="field"><label>Risk per trade (%)</label>
+        <input type="number" id="cRisk" value="1" step="0.5" /></div>
+      <div class="field-row">
+        <div><label>Entry price</label>
+          <input type="number" id="cEntry" value="100" step="any" /></div>
+        <div><label>Stop-loss</label>
+          <input type="number" id="cStop" value="98" step="any" /></div>
+      </div>
+      <button class="full" id="cCalcBtn">Calculate</button>
+      <div class="preview" id="cOut" style="margin-top:12px">Enter values and tap calculate.</div>
+    </div>
+    <div class="banner">
+      <b>Rule:</b> Risk only 1–2% of your account per trade. Big caps (BTC, ETH) can use wider stops; small caps need tighter stops.
+    </div>
+  </section>
+
+</main>
+
+<nav>
+  <button class="active" data-view="scan"><span class="ico">🔍</span><span>Scan</span></button>
+  <button data-view="journal"><span class="ico">📓</span><span>Journal</span></button>
+  <button data-view="alerts"><span class="ico">🔔</span><span>Alerts</span>
+    <span class="badge-dot hidden" id="navDot"></span></button>
+  <button data-view="risk"><span class="ico">🧮</span><span>Risk</span></button>
+</nav>
+
+<script>
+/* ============================================================
+   CONFIG + STATE
+============================================================ */
+const API_URL =
+  'https://api.coingecko.com/api/v3/coins/markets' +
+  '?vs_currency=usd&order=market_cap_desc&per_page=100&page=1' +
+  '&sparkline=false&price_change_percentage=24h,7d,30d';
+
+const TRADES_KEY = 'crypto_journal_v2';
+const SETTINGS_KEY = 'crypto_settings_v1';
+const ALERT_SETTINGS_KEY = 'crypto_alert_settings_v1';
+const ALERT_LOG_KEY = 'crypto_alert_log_v1';
+const SEEN_SETUPS_KEY = 'crypto_seen_setups_v1';
+
+// Inline SVG icon (URL-encoded) so notifications show a proper icon
+// without needing a separate image file to load.
+const ICON_DATA_URL = 'data:image/svg+xml,' + encodeURIComponent(
+  '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 192 192">' +
+  '<rect width="192" height="192" rx="42" fill="#0a0d12"/>' +
+  '<rect x="40" y="110" width="20" height="40" rx="4" fill="#22c55e"/>' +
+  '<rect x="70" y="80" width="20" height="70" rx="4" fill="#3b82f6"/>' +
+  '<rect x="100" y="60" width="20" height="90" rx="4" fill="#fbbf24"/>' +
+  '<rect x="130" y="95" width="20" height="55" rx="4" fill="#ef4444"/>' +
+  '</svg>'
+);
+
+let allCoins = [];
+let currentView = 'scan';
+let currentFilter = 'winners';
+
+const $ = id => document.getElementById(id);
+
+/* ============================================================
+   HELPERS
+============================================================ */
+function money(n) {
+  if (n == null || !isFinite(n)) return '—';
+  const sign = n < 0 ? '-' : '';
+  const a = Math.abs(n);
+  if (a >= 1e12) return sign + '$' + (a / 1e12).toFixed(2) + 'T';
+  if (a >= 1e9)  return sign + '$' + (a / 1e9).toFixed(2) + 'B';
+  if (a >= 1e6)  return sign + '$' + (a / 1e6).toFixed(2) + 'M';
+  if (a >= 1e3)  return sign + '$' + (a / 1e3).toFixed(2) + 'K';
+  return sign + '$' + a.toFixed(2);
+}
+function price(n) {
+  if (n == null) return '—';
+  if (n >= 1000) return '$' + n.toLocaleString(undefined, { maximumFractionDigits: 0 });
+  if (n >= 1) return '$' + n.toLocaleString(undefined, { maximumFractionDigits: 2 });
+  if (n >= 0.01) return '$' + n.toFixed(4);
+  return '$' + n.toFixed(8);
+}
+function ch24(c) { return c.price_change_percentage_24h ?? 0; }
+function ch7(c) { return c.price_change_percentage_7d_in_currency ?? c.price_change_percentage_7d ?? 0; }
+function ch30(c) { return c.price_change_percentage_30d_in_currency ?? c.price_change_percentage_30d ?? 0; }
+function volRatio(c) { return c.market_cap ? c.total_volume / c.market_cap : 0; }
+
+function isMomentumBurst(c) {
+  return ch24(c) >= 3 && ch24(c) <= 8 && ch7(c) > 0 && volRatio(c) >= 0.03;
+}
+function isPullback(c) {
+  return ch7(c) >= 12 && ch24(c) <= -2 && ch24(c) >= -5.5 && ch30(c) > -10;
+}
+
+/* ============================================================
+   WINNER SCORE
+============================================================ */
+function winnerScore(c) {
+  const a = ch24(c), w = ch7(c), m = ch30(c), v = volRatio(c);
+  const rank = c.market_cap_rank ?? 500;
+  const clamp = (x, lo, hi) => Math.max(lo, Math.min(hi, x));
+  return Math.round(
+    clamp(((a + 5) / 13) * 25, 0, 25) +
+    clamp(((w + 10) / 40) * 25, 0, 25) +
+    clamp(((m + 20) / 80) * 15, 0, 15) +
+    clamp((v / 0.10) * 20, 0, 20) +
+    clamp(15 - Math.log10(rank + 1) * 3.2, 0, 15)
+  );
+}
+function scoreColor(s) {
+  if (s >= 70) return 'var(--green)';
+  if (s >= 50) return '#fbbf24';
+  if (s >= 35) return '#f97316';
+  return 'var(--red)';
+}
+
+/* ============================================================
+   WIN CHANCE ESTIMATE
+============================================================ */
+function estimateWinChance(c) {
+  const isMom = isMomentumBurst(c);
+  const isPull = isPullback(c);
+
+  // Base rates (Momentum and Pullback are mutually exclusive by definition)
+  let base = 30;
+  if (isPull) base = 46;
+  else if (isMom) base = 28;
+
+  const scoreAdj = ((winnerScore(c) - 50) / 50) * 14;
+
+  const v = volRatio(c);
+  const volAdj = v >= 0.12 ? 7 : v >= 0.08 ? 4 : v >= 0.05 ? 1 : v >= 0.03 ? -1 : -6;
+
+  const w = ch7(c);
+  const trendAdj = w >= 30 ? 7 : w >= 15 ? 4 : w >= 5 ? 1 : w >= 0 ? -1 : -7;
+
+  const m = ch30(c);
+  const longAdj = m >= 40 ? 5 : m >= 10 ? 3 : m >= -5 ? 0 : m >= -20 ? -4 : -9;
+
+  const rank = c.market_cap_rank ?? 500;
+  const rankAdj = rank <= 10 ? 5 : rank <= 30 ? 3 : rank <= 60 ? 1 : rank <= 100 ? -1 : -4;
+
+  const total = base + scoreAdj + volAdj + trendAdj + longAdj + rankAdj;
+  return Math.max(8, Math.min(68, Math.round(total)));
+}
+
+/* Reward:Risk ratio only — the win/loss amounts aren't read anywhere. */
+function setupRR(c) {
+  if (isPullback(c)) return 1.17;
+  if (isMomentumBurst(c)) return 2.25;
+  return 1.75;
+}
+
+function expectedValue(c) {
+  const p = estimateWinChance(c) / 100;
+  const rr = setupRR(c);
+  return (p * rr) - ((1 - p) * 1);
+}
+
+function chanceColor(p) {
+  if (p >= 55) return 'var(--green)';
+  if (p >= 42) return '#fbbf24';
+  if (p >= 30) return '#f97316';
+  return 'var(--red)';
+}
+
+/* ============================================================
+   SETTINGS
+============================================================ */
+function loadSettings() {
+  try { return JSON.parse(localStorage.getItem(SETTINGS_KEY)) || { balance: 100, riskPct: 1 }; }
+  catch { return { balance: 100, riskPct: 1 }; }
+}
+function saveSettings(s) { localStorage.setItem(SETTINGS_KEY, JSON.stringify(s)); }
+
+const DEFAULT_ALERT_SETTINGS = {
+  enabled: true, sound: true, vibrate: true, notify: true,
+  nearStop: true, nearTarget: true, onClose: true, onSetup: true,
+  nearThreshold: 0.5
+};
+function loadAlertSettings() {
+  try { return Object.assign({}, DEFAULT_ALERT_SETTINGS, JSON.parse(localStorage.getItem(ALERT_SETTINGS_KEY)) || {}); }
+  catch { return { ...DEFAULT_ALERT_SETTINGS }; }
+}
+function saveAlertSettings(s) { localStorage.setItem(ALERT_SETTINGS_KEY, JSON.stringify(s)); }
+
+function nearThresholdFraction() {
+  const raw = parseFloat(loadAlertSettings().nearThreshold);
+  const pct = isNaN(raw) ? 0.5 : Math.max(0, Math.min(5, raw));
+  return pct / 100;
+}
+
+function loadAlertLog() {
+  try { return JSON.parse(localStorage.getItem(ALERT_LOG_KEY)) || []; }
+  catch { return []; }
+}
+function saveAlertLog(l) { localStorage.setItem(ALERT_LOG_KEY, JSON.stringify(l.slice(0, 100))); }
+function logAlert(type, title, message) {
+  const log = loadAlertLog();
+  log.unshift({ type, title, message, time: Date.now() });
+  saveAlertLog(log);
+  if (currentView === 'alerts') renderAlertLog();
+}
+
+/* ============================================================
+   SOUND / VIBRATION / NOTIFICATION
+============================================================ */
+let audioCtx = null;
+function ensureAudio() {
+  if (!audioCtx) {
+    try { audioCtx = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) { audioCtx = null; }
+  }
+  if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
+}
+function playTone(freq, dur, delay = 0) {
+  if (!audioCtx) return;
+  const t = audioCtx.currentTime + delay;
+  const osc = audioCtx.createOscillator();
+  const gain = audioCtx.createGain();
+  osc.type = 'sine';
+  osc.frequency.value = freq;
+  gain.gain.setValueAtTime(0.0001, t);
+  gain.gain.exponentialRampToValueAtTime(0.20, t + 0.01);
+  gain.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+  osc.connect(gain); gain.connect(audioCtx.destination);
+  osc.start(t); osc.stop(t + dur + 0.02);
+}
+function playAlertSound(type) {
+  ensureAudio();
+  if (!audioCtx) return;
+  if (type === 'win')   { playTone(880, 0.15, 0); playTone(1320, 0.20, 0.16); }
+  else if (type === 'loss') { playTone(440, 0.18, 0); playTone(300, 0.28, 0.18); }
+  else if (type === 'warn') { playTone(660, 0.10, 0); playTone(660, 0.10, 0.15); playTone(660, 0.10, 0.30); }
+  else { playTone(520, 0.12, 0); playTone(780, 0.15, 0.13); }
+}
+function doVibrate(p) { if (navigator.vibrate) { try { navigator.vibrate(p); } catch(e){} } }
+
+/* Service worker registration. */
+let swReg = null;
+if ('serviceWorker' in navigator && location.protocol !== 'file:') {
+  navigator.serviceWorker.register('sw.js')
+    .then(r => { swReg = r; })
+    .catch(() => { /* file:// or unsupported — banner+sound still work */ });
+}
+
+function pushNative(title, body) {
+  if (!('Notification' in window) || Notification.permission !== 'granted') return;
+  const opts = {
+    body,
+    tag: 'crypto-' + Date.now(),
+    silent: true,
+    icon: ICON_DATA_URL,
+    badge: ICON_DATA_URL
+  };
+  if (swReg) {
+    // showNotification returns a Promise that can reject if the SW was killed.
+    swReg.showNotification(title, opts).catch(() => { /* SW died — ignore */ });
+    return;
+  }
+  try {
+    const n = new Notification(title, opts);
+    setTimeout(() => { try { n.close(); } catch(e){} }, 15000);
+  } catch (e) { /* Android without SW — banner+sound still fire */ }
+}
+
+let bannerTimer = null;
+function showBanner(text, kind) {
+  const b = $('alertBanner');
+  b.textContent = text;
+  b.className = 'show ' + kind;
+  clearTimeout(bannerTimer);
+  bannerTimer = setTimeout(() => { b.className = kind; }, 6000);
+}
+
+function fireAlert(kind, title, message) {
+  const s = loadAlertSettings();
+  if (!s.enabled) return;
+  const bannerKind = kind === 'win' ? 'win' : kind === 'loss' ? 'loss' : kind === 'warn' ? 'warn' : 'info';
+  showBanner(title + ' — ' + message, bannerKind);
+  if (s.sound) playAlertSound(bannerKind);
+  if (s.vibrate) {
+    if (kind === 'win') doVibrate([120,60,120]);
+    else if (kind === 'loss') doVibrate([300,100,300]);
+    else if (kind === 'warn') doVibrate([80,50,80,50,80]);
+    else doVibrate([60,40,60]);
+  }
+  if (s.notify) pushNative(title, message);
+  logAlert(bannerKind, title, message);
+  const dot = $('navDot');
+  if (dot && currentView !== 'alerts') dot.classList.remove('hidden');
+}
+
+/* ============================================================
+   COIN CARDS
+============================================================ */
+function coinCardHTML(c, highlight) {
+  const a = ch24(c), w = ch7(c), m = ch30(c);
+  const cls = a > 0 ? 'up' : a < 0 ? 'down' : 'flat';
+  const s = winnerScore(c);
+  const chance = estimateWinChance(c);
+  const ev = expectedValue(c);
+  const tags = [];
+  if (isMomentumBurst(c)) tags.push('<span class="tag momentum">Momentum</span>');
+  if (isPullback(c)) tags.push('<span class="tag pullback">Pullback</span>');
+
+  const chanceBlock = highlight ? `
+    <div style="margin:12px 0 10px;padding:12px;background:var(--bg);border-radius:10px;text-align:center;border:1px solid ${chanceColor(chance)}33">
+      <div style="font-size:0.68rem;color:var(--muted);text-transform:uppercase;letter-spacing:0.7px;font-weight:700">Estimated chance to profit</div>
+      <div style="font-size:2rem;font-weight:800;color:${chanceColor(chance)};letter-spacing:-1px;line-height:1.1;margin-top:4px">${chance}%</div>
+      <div style="font-size:0.72rem;color:var(--muted);margin-top:4px">Expected value per $1 risked: <b style="color:${ev >= 0 ? 'var(--green)' : 'var(--red)'}">${ev >= 0 ? '+' : ''}$${ev.toFixed(2)}</b></div>
+    </div>` : '';
+
+  return `
+    <div class="coin-card ${highlight ? 'highlight' : ''}">
+      <div class="top">
+        <div>
+          <div class="name">${c.name}</div>
+          <div class="symbol">${c.symbol.toUpperCase()} · #${c.market_cap_rank ?? '—'}</div>
+        </div>
+        <div class="right">
+          <div class="price">${price(c.current_price)}</div>
+          <div class="change ${cls}">${a >= 0 ? '+' : ''}${a.toFixed(2)}%</div>
+        </div>
+      </div>
+      ${tags.length ? `<div class="tags">${tags.join('')}</div>` : ''}
+      ${chanceBlock}
+      <div class="metrics">
+        <div>7d <span class="${w >= 0 ? 'up' : 'down'}">${w >= 0 ? '+' : ''}${w.toFixed(1)}%</span></div>
+        <div>30d <span class="${m >= 0 ? 'up' : 'down'}">${m >= 0 ? '+' : ''}${m.toFixed(0)}%</span></div>
+        <div>Vol <span>${money(c.total_volume)}</span></div>
+      </div>
+      <div class="score-row">
+        <div class="num" style="color:${scoreColor(s)}">${s}</div>
+        <div class="score-bar"><div class="score-fill" style="width:${s}%;background:${scoreColor(s)}"></div></div>
+      </div>
+    </div>`;
+}
+
+function renderCoinList() {
+  const q = $('search').value.trim().toLowerCase();
+  let list;
+
+  if (currentFilter === 'momentum') list = allCoins.filter(isMomentumBurst);
+  else if (currentFilter === 'pullback') list = allCoins.filter(isPullback);
+  else if (currentFilter === 'winners') list = allCoins.filter(c => isMomentumBurst(c) || isPullback(c));
+  else list = allCoins;
+
+  list = list.sort((a, b) => winnerScore(b) - winnerScore(a));
+  if (q) list = list.filter(c => c.name.toLowerCase().includes(q) || c.symbol.toLowerCase().includes(q));
+
+  const el = $('coinList');
+
+  const explainer = currentFilter === 'winners' ? `
+    <div class="banner" style="border-left-color:var(--amber);margin-bottom:16px">
+      <b>What the % means.</b> It's an estimate based on how similar setups performed historically, adjusted by this coin's quality score. <b>It is not a guarantee.</b> A 30% chance with a 2:1 reward is often better than a 60% chance with a 0.5:1 reward — that's why Expected Value is shown too. <b>Green EV = profitable long-term, red EV = losing long-term.</b>
+    </div>` : '';
+
+  if (!list.length) {
+    const msgs = {
+      winners: ['🏆', 'No qualified setups right now.', 'This is the correct result most of the time. Wait for the setup.'],
+      momentum: ['🚀', 'No momentum setups.', 'Needs a coin up 3–8% today with a positive 7-day trend.'],
+      pullback: ['📉', 'No pullback setups.', 'Needs a coin up 12%+ this week that dipped 2–5% today.'],
+      all: ['📊', 'No coins found.', 'Try refreshing.']
+    };
+    const [e, t, s] = msgs[currentFilter] || msgs.all;
+    el.innerHTML = explainer + `<div class="empty"><span class="emoji">${e}</span><b>${t}</b><br>${s}</div>`;
+    return;
+  }
+
+  const highlight = currentFilter === 'winners';
+  el.innerHTML = explainer + list.map(c => coinCardHTML(c, highlight)).join('');
+}
+
+/* ============================================================
+   FETCH (guarded + exponential backoff)
+============================================================ */
+let pollTimer = null;
+let failStreak = 0;
+let firstFetchDone = false;
+let fetching = false;
+
+async function fetchCrypto() {
+  // Guard against overlapping calls (e.g. user taps refresh mid-cycle)
+  if (fetching) return;
+  fetching = true;
+
+  const btn = $('refreshBtn');
+  btn.classList.add('spin');
+  try {
+    const res = await fetch(API_URL);
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const data = await res.json();
+    if (!Array.isArray(data) || !data.length) throw new Error('Bad payload');
+    allCoins = data;
+    renderCoinList();
+    autoCloseTrades({ silent: !firstFetchDone });
+    checkNearLevels();
+    checkNewSetups({ silent: !firstFetchDone });
+    if (currentView === 'journal') renderJournal();
+    firstFetchDone = true;
+    failStreak = 0;
+    const w = allCoins.filter(c => isMomentumBurst(c) || isPullback(c)).length;
+    $('status').textContent = `${allCoins.length} coins · ${w} setup${w !== 1 ? 's' : ''} · ${new Date().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}`;
+  } catch (e) {
+    console.error(e);
+    failStreak++;
+    const msg = failStreak >= 3
+      ? `Failed to load (${failStreak}×) — backing off`
+      : 'Failed to load — tap ↻';
+    $('status').innerHTML = `<span style="color:var(--red)">${msg}</span>`;
+  } finally {
+    fetching = false;
+    btn.classList.remove('spin');
+    scheduleNextFetch();
+  }
+}
+
+function scheduleNextFetch() {
+  clearTimeout(pollTimer);
+  const delay = Math.min(90000 * Math.pow(1.5, failStreak), 900000);
+  pollTimer = setTimeout(fetchCrypto, delay);
+}
+
+function findCoinLive(symbol) {
+  return allCoins.find(c => c.symbol.toLowerCase() === symbol.toLowerCase());
+}
+function computePnl(t, exit) {
+  const units = t.entry > 0 && t.size > 0 ? t.size / t.entry : 0;
+  return (exit - t.entry) * units;
+}
+
+/* ============================================================
+   AUTO-CLOSE + NEAR LEVELS + NEW SETUPS
+============================================================ */
+function loadTrades() {
+  try { return JSON.parse(localStorage.getItem(TRADES_KEY)) || []; }
+  catch { return []; }
+}
+function saveTrades(t) { localStorage.setItem(TRADES_KEY, JSON.stringify(t)); }
+
+function autoCloseTrades({ silent = false } = {}) {
+  const trades = loadTrades();
+  let changed = false;
+  const s = loadAlertSettings();
+  trades.forEach(t => {
+    if (t.status !== 'open') return;
+    const c = findCoinLive(t.coin);
+    if (!c) return;
+    const live = c.current_price;
+    if (live <= t.stop) {
+      t.exit = t.stop; t.status = 'loss';
+      t.closeDate = new Date().toISOString(); t.autoClosed = 'stop';
+      t.pnl = computePnl(t, t.stop);
+      t.pnlPct = ((t.stop - t.entry) / t.entry) * 100;
+      changed = true;
+      if (s.onClose && !silent) {
+        fireAlert('loss', `🛑 ${t.coin} stopped out`, `Loss ${money(Math.abs(t.pnl))}`);
+      }
+    } else if (live >= t.target) {
+      t.exit = t.target; t.status = 'win';
+      t.closeDate = new Date().toISOString(); t.autoClosed = 'target';
+      t.pnl = computePnl(t, t.target);
+      t.pnlPct = ((t.target - t.entry) / t.entry) * 100;
+      changed = true;
+      if (s.onClose && !silent) {
+        fireAlert('win', `✅ ${t.coin} hit target`, `Profit +${money(t.pnl)}`);
+      }
+    }
+  });
+  if (changed) { saveTrades(trades); if (currentView === 'journal') renderJournal(); }
+}
+
+function checkNearLevels() {
+  const s = loadAlertSettings();
+  if (!s.nearStop && !s.nearTarget) return;
+  const threshold = nearThresholdFraction();
+  if (threshold <= 0) return;
+  const trades = loadTrades();
+  let changed = false;
+  trades.forEach(t => {
+    if (t.status !== 'open') return;
+    const c = findCoinLive(t.coin);
+    if (!c) return;
+    const live = c.current_price;
+    const toStop = Math.abs(live - t.stop) / t.entry;
+    const toTarget = Math.abs(t.target - live) / t.entry;
+
+    if (s.nearStop && live > t.stop && toStop <= threshold && t.alertedStop !== true) {
+      t.alertedStop = true; changed = true;
+      fireAlert('warn', `⚠️ ${t.coin} near stop`, `${price(live)} · only ${(toStop*100).toFixed(2)}% away`);
+    }
+    if (s.nearTarget && live < t.target && toTarget <= threshold && t.alertedTarget !== true) {
+      t.alertedTarget = true; changed = true;
+      fireAlert('info', `🎯 ${t.coin} near target`, `${price(live)} · ${(toTarget*100).toFixed(2)}% away`);
+    }
+    if (t.alertedStop && (live <= t.stop || (live - t.stop) / t.entry > threshold * 2)) {
+      t.alertedStop = false; changed = true;
+    }
+    if (t.alertedTarget && (live >= t.target || (t.target - live) / t.entry > threshold * 2)) {
+      t.alertedTarget = false; changed = true;
+    }
+  });
+  if (changed) saveTrades(trades);
+}
+
+function loadSeenSetups() {
+  try { return JSON.parse(localStorage.getItem(SEEN_SETUPS_KEY)) || {}; } catch { return {}; }
+}
+function saveSeenSetups(s) { localStorage.setItem(SEEN_SETUPS_KEY, JSON.stringify(s)); }
+
+function checkNewSetups({ silent = false } = {}) {
+  const s = loadAlertSettings();
+  const setups = allCoins.filter(c => isMomentumBurst(c) || isPullback(c));
+  if (!setups.length) return;
+  const seen = loadSeenSetups();
+  const now = Date.now();
+  const FOUR_HOURS = 4 * 60 * 60 * 1000;
+  const newOnes = [];
+  setups.forEach(c => {
+    const key = c.symbol.toUpperCase();
+    if (now - (seen[key] || 0) > FOUR_HOURS) {
+      if (!silent && s.onSetup) {
+        newOnes.push({ symbol: key, name: c.name, setup: isMomentumBurst(c) ? 'Momentum' : 'Pullback', score: winnerScore(c) });
+      }
+      seen[key] = now;
+    }
+  });
+  saveSeenSetups(seen);
+  if (newOnes.length === 1) {
+    const o = newOnes[0];
+    fireAlert('info', `🏆 New ${o.setup}: ${o.symbol}`, `${o.name} · score ${o.score}`);
+  } else if (newOnes.length > 1) {
+    const top = newOnes.sort((a,b) => b.score - a.score)[0];
+    fireAlert('info', `🏆 ${newOnes.length} new setups`, `Top: ${top.symbol} (${top.score})`);
+  }
+}
+
+/* ============================================================
+   JOURNAL: AUTO-FILL
+============================================================ */
+function autoFillTrade() {
+  const sym = $('jCoin').value.trim().toUpperCase();
+  const setup = $('jSetup').value;
+  const preview = $('jPreview');
+  const settings = loadSettings();
+
+  if (!sym) { preview.textContent = 'Type a coin symbol and the trade fills in automatically.'; return; }
+  const c = findCoinLive(sym);
+  if (!c) { preview.innerHTML = `<span style="color:var(--red)">Coin "${sym}" not found in top 100.</span>`; return; }
+
+  const entry = c.current_price;
+  const stopPct = setup === 'Momentum' ? 0.02 : 0.03;
+  const targetPct = setup === 'Momentum' ? 0.045 : 0.035;
+  const stop = entry * (1 - stopPct);
+  const target = entry * (1 + targetPct);
+  const riskAmount = settings.balance * (settings.riskPct / 100);
+  const position = riskAmount / (entry - stop);
+  const posValue = position * entry;
+
+  $('jEntry').value = entry.toFixed(entry < 1 ? 6 : 4);
+  $('jStop').value = stop.toFixed(stop < 1 ? 6 : 4);
+  $('jTarget').value = target.toFixed(target < 1 ? 6 : 4);
+  $('jSize').value = posValue.toFixed(2);
+
+  const rrr = (targetPct / stopPct).toFixed(2);
+  preview.innerHTML = `
+    <b>${c.name}</b> · live ${price(entry)}<br>
+    Stop ${(stopPct*100).toFixed(1)}% · Target +${(targetPct*100).toFixed(1)}% · R:R <span class="green">${rrr}:1</span><br>
+    Risk <b>${money(riskAmount)}</b> · Size <b>${money(posValue)}</b>`;
+}
+
+function addTrade() {
+  const coin = $('jCoin').value.trim().toUpperCase();
+  const setup = $('jSetup').value;
+  const entry = parseFloat($('jEntry').value);
+  const stop = parseFloat($('jStop').value);
+  const target = parseFloat($('jTarget').value);
+  const size = parseFloat($('jSize').value) || 0;
+  const notes = $('jNotes').value.trim();
+  if (!coin || !entry || !stop || !target) { alert('Fill coin, entry, stop, target.'); return; }
+
+  const trades = loadTrades();
+  trades.unshift({
+    id: Date.now(), date: new Date().toISOString(),
+    coin, setup, entry, stop, target, size, notes,
+    status: 'open', exit: null, pnl: null,
+    alertedStop: false, alertedTarget: false
+  });
+  saveTrades(trades);
+  fireAlert('info', `📝 ${coin} logged`, `${setup} · Entry ${price(entry)}`);
+
+  $('jCoin').value = ''; $('jEntry').value = ''; $('jStop').value = '';
+  $('jTarget').value = ''; $('jSize').value = ''; $('jNotes').value = '';
+  $('jPreview').textContent = 'Saved. Type the next coin to log another.';
+  renderJournal();
+}
+
+function closeTradeManual(id) {
+  const exitStr = prompt('Exit price:');
+  if (!exitStr) return;
+  const exit = parseFloat(exitStr);
+  if (!exit || isNaN(exit)) return;
+  const trades = loadTrades();
+  const t = trades.find(x => x.id === id);
+  if (!t) return;
+  t.exit = exit;
+  t.pnl = computePnl(t, exit);
+  t.pnlPct = ((exit - t.entry) / t.entry) * 100;
+  t.status = t.pnl >= 0 ? 'win' : 'loss';
+  t.closeDate = new Date().toISOString();
+  t.autoClosed = null;
+  saveTrades(trades);
+  fireAlert(t.status === 'win' ? 'win' : 'loss',
+    `${t.status === 'win' ? '✅' : '🛑'} ${t.coin} closed`,
+    `${t.pnl >= 0 ? '+' : ''}${money(Math.abs(t.pnl))}`);
+  renderJournal();
+}
+
+function deleteTrade(id) {
+  if (!confirm('Delete this trade?')) return;
+  saveTrades(loadTrades().filter(t => t.id !== id));
+  renderJournal();
+}
+
+/* ============================================================
+   STATS + INSIGHTS
+============================================================ */
+function computeStats(trades) {
+  const closed = trades.filter(t => t.status === 'win' || t.status === 'loss');
+  const wins = closed.filter(t => t.status === 'win');
+  const losses = closed.filter(t => t.status === 'loss');
+  const winRate = closed.length ? (wins.length / closed.length) * 100 : 0;
+  const totalPnl = closed.reduce((s, t) => s + (t.pnl || 0), 0);
+  const avgWin = wins.length ? wins.reduce((s, t) => s + (t.pnl || 0), 0) / wins.length : 0;
+  const avgLoss = losses.length ? losses.reduce((s, t) => s + (t.pnl || 0), 0) / losses.length : 0;
+  const rrRatio = avgLoss !== 0 ? Math.abs(avgWin / avgLoss) : 0;
+  const expectancy = closed.length ? totalPnl / closed.length : 0;
+  return { closed, wins, losses, winRate, totalPnl, avgWin, avgLoss, rrRatio, expectancy };
+}
+function breakdownBy(trades, key) {
+  const g = {};
+  trades.filter(t => t.status === 'win' || t.status === 'loss').forEach(t => {
+    if (!g[t[key]]) g[t[key]] = { wins: 0, losses: 0, pnl: 0 };
+    if (t.status === 'win') g[t[key]].wins++; else g[t[key]].losses++;
+    g[t[key]].pnl += t.pnl || 0;
+  });
+  return g;
+}
+
+function generateInsight(stats, setupG, coinG) {
+  if (stats.closed.length === 0) {
+    return `<div class="insight"><div class="title">🧠 Learning mode</div>Log at least <b>20 closed trades</b> before trusting patterns. Right now: <b>0</b>. The app watches live prices and alerts you the moment a trade hits its stop or target.</div>`;
+  }
+  const lines = [];
+  lines.push(`Closed: <b>${stats.closed.length}</b> ${stats.closed.length < 20 ? '<span style="color:var(--muted)">— need 20 for reliable data</span>' : '<span class="good">— good sample size</span>'}`);
+  const m = setupG['Momentum'], p = setupG['Pullback'];
+  const wr = g => g ? (g.wins / (g.wins + g.losses) * 100) : 0;
+  if (m && p) {
+    const mwr = wr(m), pwr = wr(p);
+    if (Math.abs(mwr - pwr) >= 15) {
+      const better = mwr > pwr ? 'Momentum' : 'Pullback';
+      lines.push(`<span class="hl">Your ${better} trades work better.</span> Momentum ${mwr.toFixed(0)}% · Pullback ${pwr.toFixed(0)}%`);
+    }
+  }
+  if (stats.avgLoss !== 0) {
+    if (stats.rrRatio >= 2) lines.push(`R:R <span class="good">${stats.rrRatio.toFixed(2)}:1 — profitable</span>`);
+    else if (stats.rrRatio < 1) lines.push(`<span class="bad">Avg loss > avg win.</span> Tighten stops or aim higher.`);
+  }
+  if (stats.expectancy > 0) lines.push(`Expectancy <span class="good">+$${stats.expectancy.toFixed(2)}/trade</span>`);
+  else if (stats.expectancy < 0) lines.push(`Expectancy <span class="bad">-$${Math.abs(stats.expectancy).toFixed(2)}/trade</span>`);
+  return `<div class="insight"><div class="title">🧠 Insight</div>${lines.join('<br>')}</div>`;
+}
+
+function renderJournal() {
+  const trades = loadTrades();
+  const stats = computeStats(trades);
+  const setupG = breakdownBy(trades, 'setup');
+  const coinG = breakdownBy(trades, 'coin');
+
+  $('journalInsight').innerHTML = generateInsight(stats, setupG, coinG);
+
+  $('journalStats').innerHTML = `
+    <div class="stat"><div class="val">${trades.length}</div><div class="lbl">Trades</div></div>
+    <div class="stat"><div class="val" style="color:${stats.winRate >= 50 ? 'var(--green)' : '#fbbf24'}">${stats.winRate.toFixed(0)}%</div><div class="lbl">Win rate</div></div>
+    <div class="stat"><div class="val" style="color:${stats.totalPnl >= 0 ? 'var(--green)' : 'var(--red)'}">${stats.totalPnl >= 0 ? '+' : ''}$${Math.abs(stats.totalPnl).toFixed(0)}</div><div class="lbl">P&L</div></div>
+  `;
+
+  let bd = '';
+  const sk = Object.keys(setupG);
+  if (sk.length) {
+    bd += `<div class="block"><h3>By setup</h3>`;
+    sk.forEach(k => {
+      const g = setupG[k];
+      const w = (g.wins / (g.wins + g.losses) * 100).toFixed(0);
+      bd += `<div class="bd-row"><span class="k">${k} · ${g.wins+g.losses} trades</span><span class="v" style="color:${w >= 50 ? 'var(--green)' : '#fbbf24'}">${w}% · ${g.pnl >= 0 ? '+' : ''}$${Math.abs(g.pnl).toFixed(2)}</span></div>`;
+    });
+    bd += `</div>`;
+  }
+  const ck = Object.keys(coinG);
+  if (ck.length >= 2) {
+    bd += `<div class="block"><h3>By coin</h3>`;
+    ck.sort((a,b) => coinG[b].pnl - coinG[a].pnl).slice(0, 6).forEach(k => {
+      const g = coinG[k];
+      const w = (g.wins / (g.wins + g.losses) * 100).toFixed(0);
+      bd += `<div class="bd-row"><span class="k">${k} · ${g.wins+g.losses}</span><span class="v" style="color:${g.pnl >= 0 ? 'var(--green)' : 'var(--red)'}">${w}% · ${g.pnl >= 0 ? '+' : ''}$${Math.abs(g.pnl).toFixed(2)}</span></div>`;
+    });
+    bd += `</div>`;
+  }
+  $('journalBreakdown').innerHTML = bd;
+
+  const listEl = $('journalList');
+  if (!trades.length) {
+    listEl.innerHTML = '<div class="empty">No trades logged yet.<br>Type a coin above to start.</div>';
+    return;
+  }
+
+  const threshold = nearThresholdFraction();
+  listEl.innerHTML = trades.map(t => {
+    const live = findCoinLive(t.coin);
+    const livePrice = live ? live.current_price : null;
+    let statusTag = '<span class="tag open">Open</span>';
+    if (t.status === 'win') statusTag = '<span class="tag win">Win</span>';
+    if (t.status === 'loss') statusTag = '<span class="tag loss">Loss</span>';
+
+    let pnlText = '';
+    if (t.pnl != null) {
+      pnlText = `<div class="pnl ${t.pnl >= 0 ? 'up' : 'down'}">${t.pnl >= 0 ? '+' : ''}$${Math.abs(t.pnl).toFixed(2)}</div>`;
+    } else if (livePrice) {
+      const u = ((livePrice - t.entry) / t.entry) * 100;
+      pnlText = `<div class="pnl flat">${u >= 0 ? '+' : ''}${u.toFixed(2)}%</div>`;
+    }
+
+    let nearTag = '', nearClass = '';
+    if (t.status === 'open' && livePrice && threshold > 0) {
+      const toStop = Math.abs(livePrice - t.stop) / t.entry;
+      const toTarget = Math.abs(t.target - livePrice) / t.entry;
+      if (livePrice > t.stop && toStop <= threshold) { nearClass = 'near-stop'; nearTag = '<span class="tag near-stop">⚠️ Near stop</span>'; }
+      else if (livePrice < t.target && toTarget <= threshold) { nearClass = 'near-target'; nearTag = '<span class="tag near-target">🎯 Near target</span>'; }
+    }
+
+    return `
+      <div class="trade ${nearClass}">
+        <button class="del" data-id="${t.id}" aria-label="Delete trade">✕</button>
+        <div class="row1">
+          <div>
+            <span class="pair">${t.coin}</span>
+            <span class="tag ${t.setup === 'Momentum' ? 'momentum' : 'pullback'}">${t.setup}</span>
+            ${statusTag}${nearTag}
+          </div>
+          ${pnlText}
+        </div>
+        <div class="details">
+          <span class="lbl">Entry</span> ${price(t.entry)} · <span class="lbl">Stop</span> ${price(t.stop)} · <span class="lbl">Target</span> ${price(t.target)}<br>
+          ${t.exit ? `<span class="lbl">Exit</span> ${price(t.exit)}${t.autoClosed ? ' <span style="color:var(--dim)">auto</span>' : ''}<br>` : ''}
+          ${livePrice && t.status === 'open' ? `<span class="lbl">Live</span> ${price(livePrice)}<br>` : ''}
+          ${t.notes ? `📝 ${t.notes}` : ''}
+        </div>
+        ${t.status === 'open' ? `<button class="ghost small close-btn" data-id="${t.id}">Close trade</button>` : ''}
+      </div>`;
+  }).join('');
+}
+
+/* ============================================================
+   ALERTS PANEL
+============================================================ */
+function updatePermStatus() {
+  const el = $('permStatus');
+  if (!('Notification' in window)) {
+    el.textContent = 'Unsupported'; el.className = 'perm-pill perm-denied'; return;
+  }
+  const p = Notification.permission;
+  if (p === 'granted') { el.textContent = 'Granted'; el.className = 'perm-pill perm-granted'; }
+  else if (p === 'denied') { el.textContent = 'Denied'; el.className = 'perm-pill perm-denied'; }
+  else { el.textContent = 'Not asked'; el.className = 'perm-pill perm-default'; }
+}
+function renderAlertLog() {
+  const log = loadAlertLog();
+  const el = $('alertLog');
+  if (!log.length) {
+    el.innerHTML = '<div class="empty" style="padding:20px">No alerts yet.</div>';
+    return;
+  }
+  el.innerHTML = log.map(a => `
+    <div class="log-item ${a.type}">
+      <div class="title">${a.title}</div>
+      <div>${a.message}</div>
+      <div class="time">${new Date(a.time).toLocaleString()}</div>
+    </div>`).join('');
+}
+function renderAlertsPanel() {
+  const s = loadAlertSettings();
+  ['enabled','sound','vibrate','notify','nearStop','nearTarget','onClose','onSetup'].forEach(k => {
+    const sw = $('sw_' + k);
+    if (sw) {
+      sw.classList.toggle('on', !!s[k]);
+      sw.setAttribute('aria-checked', String(!!s[k]));
+    }
+  });
+  $('nearThreshold').value = s.nearThreshold;
+  updatePermStatus();
+  renderAlertLog();
+  $('navDot').classList.add('hidden');
+}
+
+/* ============================================================
+   RISK CALC
+============================================================ */
+function calcRisk() {
+  const bal = parseFloat($('cBalance').value) || 0;
+  const riskP = parseFloat($('cRisk').value) || 0;
+  const entry = parseFloat($('cEntry').value) || 0;
+  const stop = parseFloat($('cStop').value) || 0;
+  const out = $('cOut');
+  if (!bal || !entry || !stop || !riskP) { out.textContent = 'Fill all fields.'; return; }
+  if (entry === stop) { out.innerHTML = '<span style="color:var(--red)">Entry and stop cannot match.</span>'; return; }
+  const riskAmount = bal * (riskP / 100);
+  const perUnitRisk = Math.abs(entry - stop);
+  const stopPct = (perUnitRisk / entry) * 100;
+  const position = riskAmount / perUnitRisk;
+  const posValue = position * entry;
+  if (posValue > bal) {
+    out.innerHTML = `<span style="color:var(--red)">Stop too tight.</span><br>Would need ${money(posValue)} but account is ${money(bal)}.`;
+    return;
+  }
+  out.innerHTML = `
+    Max loss <b>${money(riskAmount)}</b><br>
+    Stop distance <b>${stopPct.toFixed(2)}%</b><br>
+    Position <b>${position.toLocaleString(undefined, { maximumFractionDigits: 6 })} units</b><br>
+    Value <b>${money(posValue)}</b>`;
+}
+
+/* ============================================================
+   VIEW SWITCHING
+============================================================ */
+function syncAccountInputs() {
+  const s = loadSettings();
+  $('jBalance').value = s.balance;
+  $('jRiskPct').value = s.riskPct;
+  $('cBalance').value = s.balance;
+  $('cRisk').value = s.riskPct;
+}
+
+function switchView(view) {
+  currentView = view;
+  document.querySelectorAll('nav button').forEach(b => b.classList.toggle('active', b.dataset.view === view));
+  document.querySelectorAll('.view').forEach(v => v.classList.toggle('active', v.id === 'view-' + view));
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+
+  if (view === 'journal') { syncAccountInputs(); renderJournal(); }
+  else if (view === 'alerts') renderAlertsPanel();
+  else if (view === 'risk') { syncAccountInputs(); calcRisk(); }
+  else if (view === 'scan') renderCoinList();
+}
+
+/* ============================================================
+   EVENTS
+============================================================ */
+document.querySelectorAll('nav button').forEach(b => {
+  b.addEventListener('click', () => switchView(b.dataset.view));
+});
+
+document.querySelectorAll('.chip').forEach(c => {
+  c.addEventListener('click', () => {
+    document.querySelectorAll('.chip').forEach(x => {
+      x.classList.remove('active');
+      x.setAttribute('aria-pressed', 'false');
+    });
+    c.classList.add('active');
+    c.setAttribute('aria-pressed', 'true');
+    currentFilter = c.dataset.filter;
+    renderCoinList();
+  });
+});
+
+$('search').addEventListener('input', renderCoinList);
+$('refreshBtn').addEventListener('click', fetchCrypto);
+
+$('jCoin').addEventListener('input', autoFillTrade);
+$('jSetup').addEventListener('change', autoFillTrade);
+
+function onAccountInput() {
+  saveSettings({
+    balance: parseFloat($('jBalance').value) || 0,
+    riskPct: parseFloat($('jRiskPct').value) || 1
+  });
+  if ($('jCoin').value.trim()) autoFillTrade();
+}
+$('jBalance').addEventListener('input', onAccountInput);
+$('jRiskPct').addEventListener('input', onAccountInput);
+
+function onRiskAccountInput() {
+  saveSettings({
+    balance: parseFloat($('cBalance').value) || 0,
+    riskPct: parseFloat($('cRisk').value) || 1
+  });
+  calcRisk();
+}
+$('cBalance').addEventListener('input', onRiskAccountInput);
+$('cRisk').addEventListener('input', onRiskAccountInput);
+
+$('jAddBtn').addEventListener('click', addTrade);
+
+$('journalList').addEventListener('click', e => {
+  const del = e.target.closest('.del');
+  if (del) { deleteTrade(Number(del.dataset.id)); return; }
+  const close = e.target.closest('.close-btn');
+  if (close) { closeTradeManual(Number(close.dataset.id)); return; }
+});
+
+['enabled','sound','vibrate','notify','nearStop','nearTarget','onClose','onSetup'].forEach(k => {
+  const sw = $('sw_' + k);
+  if (!sw) return;
+  const toggle = () => {
+    const s = loadAlertSettings();
+    s[k] = !s[k];
+    saveAlertSettings(s);
+    sw.classList.toggle('on', s[k]);
+    sw.setAttribute('aria-checked', String(s[k]));
+    ensureAudio();
+  };
+  sw.addEventListener('click', toggle);
+  sw.addEventListener('keydown', e => {
+    if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); toggle(); }
+  });
+});
+
+$('nearThreshold').addEventListener('input', () => {
+  const raw = parseFloat($('nearThreshold').value);
+  const s = loadAlertSettings();
+  s.nearThreshold = isNaN(raw) ? 0.5 : Math.max(0, Math.min(5, raw));
+  saveAlertSettings(s);
+});
+
+$('grantPermBtn').addEventListener('click', async () => {
+  ensureAudio();
+  if (!('Notification' in window)) { alert('Not supported on this browser.'); return; }
+  try {
+    const p = await Notification.requestPermission();
+    updatePermStatus();
+    if (p === 'granted') pushNative('🔔 Alerts enabled', 'You will now receive trade alerts.');
+  } catch (e) { alert('Error: ' + e.message); }
+});
+$('testAlertBtn').addEventListener('click', () => {
+  fireAlert('info', '🔔 Test alert', 'If you see this and hear a tone, alerts work.');
+});
+$('clearLogBtn').addEventListener('click', () => {
+  if (!confirm('Clear alert history?')) return;
+  saveAlertLog([]);
+  renderAlertLog();
+});
+
+$('cCalcBtn').addEventListener('click', calcRisk);
+$('cEntry').addEventListener('input', calcRisk);
+$('cStop').addEventListener('input', calcRisk);
+
+document.body.addEventListener('touchstart', ensureAudio, { once: true });
+document.body.addEventListener('click', ensureAudio, { once: true });
+
+/* ============================================================
+   BOOT
+============================================================ */
+syncAccountInputs();
+fetchCrypto();
+renderJournal();
+</script>
+</body>
+</html>
