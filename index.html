@@ -7,6 +7,7 @@
 <meta name="theme-color" content="#0a0d12">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" type="image/svg+xml" href="icon.svg">
+<script src="https://unpkg.com/lightweight-charts@4.2.3/dist/lightweight-charts.standalone.production.js" defer></script>
 <title>Crypto Scanner</title>
 <style>
   :root {
@@ -329,6 +330,56 @@
   nav button .badge-dot.hidden { display: none; }
 
   .hidden { display: none !important; }
+
+  .detail-header {
+    display: flex; align-items: flex-start; gap: 12px;
+    margin-bottom: 16px;
+  }
+  .detail-header .back-btn {
+    background: var(--surface); border: 1px solid var(--border);
+    color: var(--text); width: 38px; height: 38px;
+    border-radius: 50%; padding: 0; font-size: 18px;
+    flex-shrink: 0;
+  }
+  .detail-header .info { flex: 1; min-width: 0; }
+  .detail-header .info .name { font-size: 1.05rem; font-weight: 700; }
+  .detail-header .info .symbol { font-size: 0.72rem; color: var(--muted); margin-top: 2px; }
+  .detail-header .right { text-align: right; }
+  .detail-header .right .price { font-size: 1.05rem; font-weight: 700; }
+  .detail-header .right .change { font-size: 0.8rem; font-weight: 600; margin-top: 2px; }
+
+  .period-tabs {
+    display: flex; gap: 6px; margin-bottom: 12px;
+  }
+  .period-tabs button {
+    flex: 1; padding: 8px 0; font-size: 0.78rem;
+    background: var(--surface); color: var(--muted);
+    border: 1px solid var(--border); border-radius: var(--radius-sm);
+    font-weight: 600;
+  }
+  .period-tabs button.active {
+    background: var(--blue); color: #fff; border-color: var(--blue);
+  }
+
+  #chartContainer {
+    background: var(--surface); border: 1px solid var(--border-soft);
+    border-radius: var(--radius); padding: 8px;
+    margin-bottom: 14px; min-height: 320px;
+    position: relative;
+  }
+  #chartContainer .chart-status {
+    position: absolute; inset: 0; display: flex;
+    align-items: center; justify-content: center;
+    color: var(--muted); font-size: 0.85rem;
+    pointer-events: none;
+  }
+
+  .legend {
+    display: flex; gap: 14px; font-size: 0.72rem;
+    color: var(--muted); margin-bottom: 12px; flex-wrap: wrap;
+  }
+  .legend .item { display: flex; align-items: center; gap: 5px; }
+  .legend .swatch { width: 12px; height: 3px; border-radius: 2px; }
 </style>
 </head>
 <body>
@@ -345,7 +396,6 @@
 
 <main>
 
-  <!-- SCAN VIEW -->
   <section class="view active" id="view-scan">
     <div class="chips" id="filterChips">
       <button class="chip active" data-filter="winners" aria-pressed="true">🏆 Winners</button>
@@ -359,7 +409,6 @@
     <div id="coinList"></div>
   </section>
 
-  <!-- JOURNAL VIEW -->
   <section class="view" id="view-journal">
     <div class="block">
       <h3>Account <span class="hint">saved automatically</span></h3>
@@ -414,7 +463,6 @@
     <div id="journalList"></div>
   </section>
 
-  <!-- ALERTS VIEW -->
   <section class="view" id="view-alerts">
     <div class="block">
       <h3>Permission
@@ -484,11 +532,41 @@
     </div>
 
     <div class="banner">
-      <b>Heads up:</b> Alerts fire while this tab is open. For notification-shade push, host this app over HTTPS (e.g. Netlify Drop) and add it to your home screen.
+      <b>Heads up:</b> Alerts fire while this tab is open. For notification-shade push, host this app over HTTPS (e.g. GitHub Pages) and add it to your home screen.
     </div>
   </section>
 
-  <!-- RISK VIEW -->
+  <section class="view" id="view-detail">
+    <div class="detail-header">
+      <button class="back-btn" id="detailBackBtn" aria-label="Back">←</button>
+      <div class="info">
+        <div class="name" id="dName">—</div>
+        <div class="symbol" id="dSymbol">—</div>
+      </div>
+      <div class="right">
+        <div class="price" id="dPrice">—</div>
+        <div class="change" id="dChange">—</div>
+      </div>
+    </div>
+
+    <div class="period-tabs" id="periodTabs">
+      <button data-period="1">1D</button>
+      <button data-period="7" class="active">7D</button>
+      <button data-period="30">30D</button>
+      <button data-period="90">90D</button>
+    </div>
+
+    <div id="chartContainer">
+      <div class="chart-status" id="chartStatus">Loading chart…</div>
+    </div>
+
+    <div class="legend" id="chartLegend"></div>
+
+    <div id="dStats"></div>
+
+    <button class="full ghost" id="dLogTradeBtn" style="margin-top:12px">📝 Log a trade for this coin</button>
+  </section>
+
   <section class="view" id="view-risk">
     <div class="block">
       <h3>Position size calculator</h3>
@@ -535,8 +613,6 @@ const ALERT_SETTINGS_KEY = 'crypto_alert_settings_v1';
 const ALERT_LOG_KEY = 'crypto_alert_log_v1';
 const SEEN_SETUPS_KEY = 'crypto_seen_setups_v1';
 
-// Inline SVG icon (URL-encoded) so notifications show a proper icon
-// without needing a separate image file to load.
 const ICON_DATA_URL = 'data:image/svg+xml,' + encodeURIComponent(
   '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 192 192">' +
   '<rect width="192" height="192" rx="42" fill="#0a0d12"/>' +
@@ -585,9 +661,6 @@ function isPullback(c) {
   return ch7(c) >= 12 && ch24(c) <= -2 && ch24(c) >= -5.5 && ch30(c) > -10;
 }
 
-/* ============================================================
-   WINNER SCORE
-============================================================ */
 function winnerScore(c) {
   const a = ch24(c), w = ch7(c), m = ch30(c), v = volRatio(c);
   const rank = c.market_cap_rank ?? 500;
@@ -607,14 +680,10 @@ function scoreColor(s) {
   return 'var(--red)';
 }
 
-/* ============================================================
-   WIN CHANCE ESTIMATE
-============================================================ */
 function estimateWinChance(c) {
   const isMom = isMomentumBurst(c);
   const isPull = isPullback(c);
 
-  // Base rates (Momentum and Pullback are mutually exclusive by definition)
   let base = 30;
   if (isPull) base = 46;
   else if (isMom) base = 28;
@@ -637,7 +706,6 @@ function estimateWinChance(c) {
   return Math.max(8, Math.min(68, Math.round(total)));
 }
 
-/* Reward:Risk ratio only — the win/loss amounts aren't read anywhere. */
 function setupRR(c) {
   if (isPullback(c)) return 1.17;
   if (isMomentumBurst(c)) return 2.25;
@@ -728,15 +796,15 @@ function playAlertSound(type) {
 }
 function doVibrate(p) { if (navigator.vibrate) { try { navigator.vibrate(p); } catch(e){} } }
 
-/* Service worker registration. */
 let swReg = null;
+let swReady = null;
 if ('serviceWorker' in navigator && location.protocol !== 'file:') {
-  navigator.serviceWorker.register('sw.js')
-    .then(r => { swReg = r; })
-    .catch(() => { /* file:// or unsupported — banner+sound still work */ });
+  swReady = navigator.serviceWorker.register('sw.js')
+    .then(r => { swReg = r; return r; })
+    .catch(() => null);
 }
 
-function pushNative(title, body) {
+async function pushNative(title, body) {
   if (!('Notification' in window) || Notification.permission !== 'granted') return;
   const opts = {
     body,
@@ -745,15 +813,22 @@ function pushNative(title, body) {
     icon: ICON_DATA_URL,
     badge: ICON_DATA_URL
   };
-  if (swReg) {
-    // showNotification returns a Promise that can reject if the SW was killed.
-    swReg.showNotification(title, opts).catch(() => { /* SW died — ignore */ });
-    return;
-  }
+  try {
+    let reg = swReg;
+    if (!reg && swReady) reg = await swReady;
+    if (!reg && navigator.serviceWorker.ready) {
+      reg = await navigator.serviceWorker.ready.catch(() => null);
+    }
+    if (reg && typeof reg.showNotification === 'function') {
+      await reg.showNotification(title, opts);
+      return;
+    }
+  } catch (e) { /* fall through */ }
+
   try {
     const n = new Notification(title, opts);
     setTimeout(() => { try { n.close(); } catch(e){} }, 15000);
-  } catch (e) { /* Android without SW — banner+sound still fire */ }
+  } catch (e) { /* unsupported */ }
 }
 
 let bannerTimer = null;
@@ -804,7 +879,7 @@ function coinCardHTML(c, highlight) {
     </div>` : '';
 
   return `
-    <div class="coin-card ${highlight ? 'highlight' : ''}">
+    <div class="coin-card ${highlight ? 'highlight' : ''}" data-symbol="${c.symbol}" style="cursor:pointer">
       <div class="top">
         <div>
           <div class="name">${c.name}</div>
@@ -865,7 +940,7 @@ function renderCoinList() {
 }
 
 /* ============================================================
-   FETCH (guarded + exponential backoff)
+   FETCH
 ============================================================ */
 let pollTimer = null;
 let failStreak = 0;
@@ -873,7 +948,6 @@ let firstFetchDone = false;
 let fetching = false;
 
 async function fetchCrypto() {
-  // Guard against overlapping calls (e.g. user taps refresh mid-cycle)
   if (fetching) return;
   fetching = true;
 
@@ -1344,6 +1418,249 @@ function switchView(view) {
   else if (view === 'risk') { syncAccountInputs(); calcRisk(); }
   else if (view === 'scan') renderCoinList();
 }
+
+/* ============================================================
+   CHART / DETAIL VIEW
+============================================================ */
+let currentChart = null;
+let currentChartSeries = null;
+let currentDetailSymbol = null;
+let currentPeriod = 7;
+const chartCache = {};
+
+function openCoinDetail(symbol) {
+  const coin = findCoinLive(symbol);
+  if (!coin) return;
+
+  currentDetailSymbol = symbol;
+  currentPeriod = 7;
+
+  $('dName').textContent = coin.name;
+  $('dSymbol').textContent = coin.symbol.toUpperCase() + ' · #' + (coin.market_cap_rank ?? '—');
+  $('dPrice').textContent = price(coin.current_price);
+  const a = ch24(coin);
+  $('dChange').textContent = (a >= 0 ? '+' : '') + a.toFixed(2) + '% (24h)';
+  $('dChange').className = 'change ' + (a > 0 ? 'up' : a < 0 ? 'down' : 'flat');
+
+  document.querySelectorAll('#periodTabs button').forEach(b => {
+    b.classList.toggle('active', b.dataset.period === '7');
+  });
+
+  document.querySelectorAll('nav button').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.view').forEach(v => v.classList.toggle('active', v.id === 'view-detail'));
+  currentView = 'detail';
+  window.scrollTo({ top: 0 });
+  try { history.pushState({ detail: symbol }, '', '#' + symbol); } catch (e) {}
+
+  loadChart(coin, 7);
+  renderDetailStats(coin);
+}
+
+async function loadChart(coin, days) {
+  const statusEl = $('chartStatus');
+  statusEl.textContent = 'Loading chart…';
+  statusEl.style.display = 'flex';
+
+  const cacheKey = coin.id + '_' + days;
+  const cached = chartCache[cacheKey];
+  const FIVE_MIN = 5 * 60 * 1000;
+
+  if (cached && Date.now() - cached.ts < FIVE_MIN) {
+    renderChart(coin, cached.data);
+    return;
+  }
+
+  try {
+    const url = `https://api.coingecko.com/api/v3/coins/${coin.id}/market_chart?vs_currency=usd&days=${days}`;
+    const res = await fetch(url);
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const json = await res.json();
+    if (!json.prices || !json.prices.length) throw new Error('No data');
+
+    const series = json.prices.map(([ts, p]) => ({
+      time: Math.floor(ts / 1000),
+      value: p
+    }));
+
+    chartCache[cacheKey] = { data: series, ts: Date.now() };
+    renderChart(coin, series);
+  } catch (e) {
+    console.error(e);
+    statusEl.textContent = 'Could not load chart. Tap a period tab to retry.';
+  }
+}
+
+function renderChart(coin, series) {
+  const container = $('chartContainer');
+  const statusEl = $('chartStatus');
+  statusEl.style.display = 'none';
+
+  if (currentChart) {
+    try { currentChart.remove(); } catch(e) {}
+    currentChart = null;
+    currentChartSeries = null;
+  }
+
+  if (typeof LightweightCharts === 'undefined') {
+    statusEl.textContent = 'Chart library failed to load. Check your internet.';
+    statusEl.style.display = 'flex';
+    return;
+  }
+
+  const w = Math.max(280, container.clientWidth - 16);
+  const h = 320;
+
+  try {
+    currentChart = LightweightCharts.createChart(container, {
+      width: w,
+      height: h,
+      layout: {
+        background: { color: '#131720' },
+        textColor: '#8a94a6',
+        fontSize: 11
+      },
+      grid: {
+        vertLines: { color: '#1a1f2b' },
+        horzLines: { color: '#1a1f2b' }
+      },
+      rightPriceScale: { borderColor: '#222838' },
+      timeScale: { borderColor: '#222838', timeVisible: currentPeriod <= 7 }
+    });
+
+    currentChartSeries = currentChart.addAreaSeries({
+      lineColor: '#3b82f6',
+      topColor: 'rgba(59,130,246,0.35)',
+      bottomColor: 'rgba(59,130,246,0.02)',
+      lineWidth: 2
+    });
+
+    currentChartSeries.setData(series);
+    currentChart.timeScale().fitContent();
+  } catch (err) {
+    console.error('Chart error:', err);
+    statusEl.textContent = 'Chart error: ' + (err.message || 'unknown');
+    statusEl.style.display = 'flex';
+    if (currentChart) {
+      try { currentChart.remove(); } catch(e) {}
+      currentChart = null;
+    }
+    return;
+  }
+
+  const trades = loadTrades().filter(t => t.coin === coin.symbol.toUpperCase() && t.status === 'open');
+  const t = trades[0];
+  const legendEl = $('chartLegend');
+  legendEl.innerHTML = '';
+
+  if (t) {
+    try {
+      currentChartSeries.createPriceLine({
+        price: t.entry, color: '#3b82f6', lineWidth: 1,
+        lineStyle: LightweightCharts.LineStyle.Dashed,
+        axisLabelVisible: true, title: 'Entry'
+      });
+      currentChartSeries.createPriceLine({
+        price: t.stop, color: '#ef4444', lineWidth: 1,
+        lineStyle: LightweightCharts.LineStyle.Dashed,
+        axisLabelVisible: true, title: 'Stop'
+      });
+      currentChartSeries.createPriceLine({
+        price: t.target, color: '#22c55e', lineWidth: 1,
+        lineStyle: LightweightCharts.LineStyle.Dashed,
+        axisLabelVisible: true, title: 'Target'
+      });
+    } catch (e) {}
+    legendEl.innerHTML = `
+      <div class="item"><span class="swatch" style="background:#3b82f6"></span>Entry ${price(t.entry)}</div>
+      <div class="item"><span class="swatch" style="background:#ef4444"></span>Stop ${price(t.stop)}</div>
+      <div class="item"><span class="swatch" style="background:#22c55e"></span>Target ${price(t.target)}</div>
+    `;
+  }
+
+  if (window._chartResizeHandler) {
+    window.removeEventListener('resize', window._chartResizeHandler);
+  }
+  window._chartResizeHandler = () => {
+    if (currentChart && container) {
+      try { currentChart.applyOptions({ width: Math.max(280, container.clientWidth - 16) }); } catch(e) {}
+    }
+  };
+  window.addEventListener('resize', window._chartResizeHandler);
+}
+
+function renderDetailStats(coin) {
+  const s = winnerScore(coin);
+  const chance = estimateWinChance(coin);
+  const ev = expectedValue(coin);
+  const isMom = isMomentumBurst(coin);
+  const isPull = isPullback(coin);
+
+  const tags = [];
+  if (isMom) tags.push('<span class="tag momentum">Momentum</span>');
+  if (isPull) tags.push('<span class="tag pullback">Pullback</span>');
+  if (!isMom && !isPull) tags.push('<span class="tag open">No setup</span>');
+
+  const a = ch24(coin), w = ch7(coin), m = ch30(coin);
+
+  $('dStats').innerHTML = `
+    <div class="block">
+      <div style="margin-bottom:10px">${tags.join('')}</div>
+      <div class="bd-row"><span class="k">24h change</span>
+        <span class="v ${a >= 0 ? 'up' : 'down'}">${a >= 0 ? '+' : ''}${a.toFixed(2)}%</span></div>
+      <div class="bd-row"><span class="k">7d change</span>
+        <span class="v ${w >= 0 ? 'up' : 'down'}">${w >= 0 ? '+' : ''}${w.toFixed(2)}%</span></div>
+      <div class="bd-row"><span class="k">30d change</span>
+        <span class="v ${m >= 0 ? 'up' : 'down'}">${m >= 0 ? '+' : ''}${m.toFixed(2)}%</span></div>
+      <div class="bd-row"><span class="k">Market cap</span>
+        <span class="v">${money(coin.market_cap)}</span></div>
+      <div class="bd-row"><span class="k">Volume (24h)</span>
+        <span class="v">${money(coin.total_volume)}</span></div>
+      <div class="bd-row"><span class="k">Winner score</span>
+        <span class="v" style="color:${scoreColor(s)}">${s} / 100</span></div>
+      <div class="bd-row"><span class="k">Estimated win chance</span>
+        <span class="v" style="color:${chanceColor(chance)}">${chance}%</span></div>
+      <div class="bd-row"><span class="k">Expected value / $1 risked</span>
+        <span class="v" style="color:${ev >= 0 ? 'var(--green)' : 'var(--red)'}">${ev >= 0 ? '+' : ''}$${ev.toFixed(2)}</span></div>
+    </div>
+  `;
+}
+
+function closeCoinDetail() {
+  if (currentChart) {
+    try { currentChart.remove(); } catch(e) {}
+    currentChart = null;
+    currentChartSeries = null;
+  }
+  currentDetailSymbol = null;
+  switchView('scan');
+}
+
+document.querySelectorAll('#periodTabs button').forEach(b => {
+  b.addEventListener('click', () => {
+    document.querySelectorAll('#periodTabs button').forEach(x => x.classList.remove('active'));
+    b.classList.add('active');
+    currentPeriod = Number(b.dataset.period);
+    const coin = findCoinLive(currentDetailSymbol);
+    if (coin) loadChart(coin, currentPeriod);
+  });
+});
+
+$('detailBackBtn').addEventListener('click', closeCoinDetail);
+$('dLogTradeBtn').addEventListener('click', () => {
+  const sym = currentDetailSymbol;
+  switchView('journal');
+  $('jCoin').value = sym || '';
+  autoFillTrade();
+});
+
+$('coinList').addEventListener('click', e => {
+  const card = e.target.closest('.coin-card');
+  if (card && card.dataset.symbol) openCoinDetail(card.dataset.symbol);
+});
+
+window.addEventListener('popstate', () => {
+  if (currentDetailSymbol) closeCoinDetail();
+});
 
 /* ============================================================
    EVENTS
