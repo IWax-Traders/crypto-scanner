@@ -39,26 +39,17 @@
 
   header {
     padding: 20px 18px 12px;
-    display: flex;
-    justify-content: space-between;
-    align-items: flex-start;
-    gap: 12px;
+    display: flex; justify-content: space-between;
+    align-items: flex-start; gap: 12px;
   }
   header h1 { font-size: 1.1rem; font-weight: 700; margin: 0; letter-spacing: -0.2px; }
   header .sub { font-size: 0.75rem; color: var(--muted); margin-top: 3px; }
   #refreshBtn {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    color: var(--text);
-    width: 38px;
-    height: 38px;
-    border-radius: 50%;
-    font-size: 17px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 0;
-    flex-shrink: 0;
+    background: var(--surface); border: 1px solid var(--border);
+    color: var(--text); width: 38px; height: 38px;
+    border-radius: 50%; font-size: 17px;
+    display: flex; align-items: center; justify-content: center;
+    padding: 0; flex-shrink: 0;
   }
   #refreshBtn:active { background: var(--surface-2); }
   #refreshBtn:disabled { opacity: 0.45; }
@@ -162,8 +153,7 @@
   .section-header button {
     padding: 6px 12px; font-size: 0.72rem;
     background: var(--surface-2); color: var(--muted);
-    border: 1px solid var(--border);
-    font-weight: 600;
+    border: 1px solid var(--border); font-weight: 600;
   }
   .section-header button:active { background: var(--surface); }
   .section-header button.danger { color: #f87171; }
@@ -228,6 +218,11 @@
   .trade .details { font-size: 0.75rem; color: var(--muted); line-height: 1.65; }
   .trade .details .lbl { color: var(--dim); }
   .trade .details .units { color: var(--text); font-weight: 600; }
+  .trade .details .closed-time { color: #b8c1d1; font-weight: 600; }
+  .trade .details .closed-method { font-weight: 700; }
+  .trade .details .closed-method.auto-stop { color: var(--red); }
+  .trade .details .closed-method.auto-target { color: var(--green); }
+  .trade .details .closed-method.manual { color: #60a5fa; }
   .trade .actions { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
   .trade .actions button { font-size: 0.75rem; padding: 7px 14px; }
   .trade .del {
@@ -351,8 +346,7 @@
     border-radius: var(--radius); line-height: 1.4;
     box-shadow: 0 6px 24px rgba(0,0,0,0.4);
     transform: translateY(calc(-100% - 24px));
-    opacity: 0;
-    pointer-events: none;
+    opacity: 0; pointer-events: none;
     transition: transform 0.35s cubic-bezier(0.4,0,0.2,1), opacity 0.25s;
   }
   #alertBanner.show { transform: translateY(0); opacity: 1; }
@@ -740,6 +734,18 @@ function units(n) {
   if (n >= 1) return n.toLocaleString(undefined, { maximumFractionDigits: 4 });
   if (n >= 0.0001) return n.toFixed(6);
   return n.toFixed(8);
+}
+// Nicely format a close timestamp. Example: "Sep 28, 11:42 AM"
+function formatTime(iso) {
+  if (!iso) return '—';
+  try {
+    const d = new Date(iso);
+    if (isNaN(d.getTime())) return '—';
+    return d.toLocaleString(undefined, {
+      month: 'short', day: 'numeric',
+      hour: '2-digit', minute: '2-digit'
+    });
+  } catch (e) { return '—'; }
 }
 function ch24(c) { return c.price_change_percentage_24h ?? 0; }
 function ch7(c) { return c.price_change_percentage_7d_in_currency ?? c.price_change_percentage_7d ?? 0; }
@@ -1516,7 +1522,6 @@ function renderJournal() {
   }
   $('journalBreakdown').innerHTML = bd;
 
-  // Bulk clear button — only when there are closed trades
   const closedCount = trades.filter(t => t.status === 'win' || t.status === 'loss').length;
   const clearBtn = $('clearClosedBtn');
   if (closedCount > 0) {
@@ -1526,7 +1531,6 @@ function renderJournal() {
     clearBtn.classList.add('hidden');
   }
 
-  // Bulk confirm banner
   const bulkSlot = $('bulkConfirmSlot');
   if (bulkConfirmOpen && closedCount > 0) {
     bulkSlot.innerHTML = `
@@ -1578,6 +1582,19 @@ function renderJournal() {
     const computedUnits = t.entry > 0 && t.size > 0 ? t.size / t.entry : 0;
     const unitsText = computedUnits > 0 ? `${units(computedUnits)} ${esc(t.coin)}` : '—';
 
+    // ---- Close method + time ----
+    let closeMethodHTML = '';
+    if (isClosed && t.closeDate) {
+      let methodLabel = 'Closed manually';
+      let methodClass = 'manual';
+      if (t.autoClosed === 'stop') { methodLabel = '🛑 Auto-closed at stop'; methodClass = 'auto-stop'; }
+      else if (t.autoClosed === 'target') { methodLabel = '✅ Auto-closed at target'; methodClass = 'auto-target'; }
+      closeMethodHTML = `
+        <span class="lbl">Closed</span>
+        <span class="closed-method ${methodClass}">${methodLabel}</span>
+        · <span class="closed-time">${formatTime(t.closeDate)}</span><br>`;
+    }
+
     const isClosing = closingTradeId === t.id;
     const isDeleting = deletingTradeId === t.id;
     const isEditing = editingTradeId === t.id;
@@ -1596,8 +1613,10 @@ function renderJournal() {
         <div class="details">
           <span class="lbl">Entry</span> ${price(t.entry)} · <span class="lbl">Stop</span> ${price(t.stop)} · <span class="lbl">Target</span> ${price(t.target)}<br>
           <span class="lbl">Units</span> <span class="units">${unitsText}</span> · <span class="lbl">Size</span> ${t.size ? money(t.size) : '—'}<br>
-          ${t.exit ? `<span class="lbl">Exit</span> ${price(t.exit)}${t.autoClosed ? ' <span style="color:var(--dim)">auto</span>' : ''}<br>` : ''}
+          ${t.exit ? `<span class="lbl">Exit</span> ${price(t.exit)}<br>` : ''}
+          ${closeMethodHTML}
           ${livePrice && t.status === 'open' ? `<span class="lbl">Live</span> ${price(livePrice)}<br>` : ''}
+          ${!isClosed && t.date ? `<span class="lbl">Opened</span> ${formatTime(t.date)}<br>` : ''}
           ${t.notes ? `📝 ${esc(t.notes)}` : ''}
         </div>
 
@@ -1871,8 +1890,7 @@ function renderChart(coin, series) {
 
   try {
     currentChart = LightweightCharts.createChart(container, {
-      width: w,
-      height: h,
+      width: w, height: h,
       layout: {
         background: { color: '#131720' },
         textColor: '#8a94a6',
@@ -2100,7 +2118,6 @@ $('cRisk').addEventListener('input', onRiskAccountInput);
 
 $('jAddBtn').addEventListener('click', addTrade);
 
-// Clear closed — toggle confirmation
 $('clearClosedBtn').addEventListener('click', () => {
   bulkConfirmOpen = !bulkConfirmOpen;
   editingTradeId = null; editDraft = null;
@@ -2108,7 +2125,6 @@ $('clearClosedBtn').addEventListener('click', () => {
   renderJournal();
 });
 
-// Bulk confirm buttons live inside #bulkConfirmSlot
 $('bulkConfirmSlot').addEventListener('click', e => {
   if (e.target.closest('.bulk-cancel')) {
     bulkConfirmOpen = false;
@@ -2122,7 +2138,6 @@ $('bulkConfirmSlot').addEventListener('click', e => {
 });
 
 $('journalList').addEventListener('click', e => {
-  // Delete confirm/cancel
   const del = e.target.closest('.del');
   if (del) {
     const id = Number(del.dataset.id);
@@ -2139,7 +2154,6 @@ $('journalList').addEventListener('click', e => {
   const delYes = e.target.closest('.del-yes');
   if (delYes) { deleteTrade(Number(delYes.dataset.id)); return; }
 
-  // Close form
   const closeBtn = e.target.closest('.close-btn');
   if (closeBtn) {
     closingTradeId = Number(closeBtn.dataset.id);
@@ -2160,7 +2174,6 @@ $('journalList').addEventListener('click', e => {
   const closeConfirm = e.target.closest('.close-confirm');
   if (closeConfirm) { closeTradeManual(Number(closeConfirm.dataset.id)); return; }
 
-  // Edit form
   const editBtn = e.target.closest('.edit-btn');
   if (editBtn) { beginEditTrade(Number(editBtn.dataset.id)); return; }
 
