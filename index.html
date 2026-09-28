@@ -11,63 +11,37 @@
 <title>Crypto Scanner</title>
 <style>
   :root {
-    --bg: #0a0d12;
-    --surface: #131720;
-    --surface-2: #1a1f2b;
-    --border: #222838;
-    --border-soft: #1a1f2b;
-    --text: #e8eaed;
-    --muted: #8a94a6;
-    --dim: #5a6577;
-    --blue: #3b82f6;
-    --green: #22c55e;
-    --red: #ef4444;
-    --amber: #f59e0b;
-    --radius: 14px;
-    --radius-sm: 10px;
+    --bg: #0a0d12; --surface: #131720; --surface-2: #1a1f2b;
+    --border: #222838; --border-soft: #1a1f2b;
+    --text: #e8eaed; --muted: #8a94a6; --dim: #5a6577;
+    --blue: #3b82f6; --green: #22c55e; --red: #ef4444; --amber: #f59e0b;
+    --radius: 14px; --radius-sm: 10px;
   }
   * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
   html, body { margin: 0; padding: 0; }
   body {
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
-    background: var(--bg);
-    color: var(--text);
-    font-size: 15px;
-    line-height: 1.45;
+    background: var(--bg); color: var(--text); font-size: 15px; line-height: 1.45;
     padding-bottom: env(safe-area-inset-bottom);
   }
-
-  header {
-    padding: 20px 18px 12px;
-    display: flex; justify-content: space-between;
-    align-items: flex-start; gap: 12px;
-  }
+  header { padding: 20px 18px 12px; display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
   header h1 { font-size: 1.1rem; font-weight: 700; margin: 0; letter-spacing: -0.2px; }
   header .sub { font-size: 0.75rem; color: var(--muted); margin-top: 3px; }
   #refreshBtn {
-    background: var(--surface); border: 1px solid var(--border);
-    color: var(--text); width: 38px; height: 38px;
-    border-radius: 50%; font-size: 17px;
-    display: flex; align-items: center; justify-content: center;
-    padding: 0; flex-shrink: 0;
+    background: var(--surface); border: 1px solid var(--border); color: var(--text);
+    width: 38px; height: 38px; border-radius: 50%; font-size: 17px;
+    display: flex; align-items: center; justify-content: center; padding: 0; flex-shrink: 0;
   }
   #refreshBtn:active { background: var(--surface-2); }
   #refreshBtn:disabled { opacity: 0.45; }
   #refreshBtn.spin { animation: spin 0.8s linear infinite; }
   @keyframes spin { to { transform: rotate(360deg); } }
-
   main { padding: 0 18px 100px; min-height: 60vh; }
   .view { display: none; }
   .view.active { display: block; animation: fadeIn 0.2s ease; }
   @keyframes fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
-
   #status { font-size: 0.72rem; color: var(--dim); text-align: center; padding: 4px 0 14px; }
-
-  .chips {
-    display: flex; gap: 6px; overflow-x: auto; padding: 0 0 14px;
-    scrollbar-width: none; margin: 0 -18px;
-    padding-left: 18px; padding-right: 18px;
-  }
+  .chips { display: flex; gap: 6px; overflow-x: auto; padding: 0 0 14px; scrollbar-width: none; margin: 0 -18px; padding-left: 18px; padding-right: 18px; }
   .chips::-webkit-scrollbar { display: none; }
   .chip {
     flex: 0 0 auto; padding: 8px 14px; border-radius: 20px;
@@ -76,12 +50,10 @@
     white-space: nowrap; transition: all 0.15s;
   }
   .chip.active { background: var(--blue); border-color: var(--blue); color: #fff; font-weight: 600; }
-
   .search-wrap { position: relative; margin-bottom: 14px; }
   .search-wrap input {
-    width: 100%; padding: 11px 14px 11px 38px;
-    border-radius: var(--radius-sm); border: 1px solid var(--border);
-    background: var(--surface); color: var(--text);
+    width: 100%; padding: 11px 14px 11px 38px; border-radius: var(--radius-sm);
+    border: 1px solid var(--border); background: var(--surface); color: var(--text);
     font-size: 0.9rem; font-family: inherit;
   }
   .search-wrap input::placeholder { color: var(--dim); }
@@ -89,34 +61,23 @@
     content: '🔍'; position: absolute; left: 13px; top: 50%;
     transform: translateY(-50%); font-size: 0.85rem; opacity: 0.5; pointer-events: none;
   }
-
   .coin-card {
     background: var(--surface); border: 1px solid var(--border-soft);
     border-radius: var(--radius); padding: 16px; margin-bottom: 10px;
     transition: border-color 0.15s;
   }
   .coin-card.highlight { border-color: var(--blue); }
-  .coin-card .top {
-    display: flex; justify-content: space-between;
-    align-items: flex-start; gap: 10px; margin-bottom: 12px;
-  }
+  .coin-card .top { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; margin-bottom: 12px; }
   .coin-card .name { font-size: 1rem; font-weight: 700; letter-spacing: -0.1px; }
   .coin-card .symbol { font-size: 0.75rem; color: var(--muted); margin-top: 2px; letter-spacing: 0.3px; }
   .coin-card .right { text-align: right; }
   .coin-card .price { font-size: 1.15rem; font-weight: 700; letter-spacing: -0.2px; }
   .coin-card .change { font-size: 0.82rem; font-weight: 600; margin-top: 2px; }
   .up { color: var(--green); } .down { color: var(--red); } .flat { color: var(--muted); }
-
-  .coin-card .metrics {
-    display: flex; gap: 16px; font-size: 0.78rem;
-    color: var(--muted); margin-bottom: 12px;
-  }
+  .coin-card .metrics { display: flex; gap: 16px; font-size: 0.78rem; color: var(--muted); margin-bottom: 12px; flex-wrap: wrap; }
   .coin-card .metrics span { color: var(--text); font-weight: 600; }
-  .coin-card .tags { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
-  .tag {
-    font-size: 0.68rem; padding: 3px 9px; border-radius: 6px;
-    font-weight: 600; letter-spacing: 0.2px;
-  }
+  .coin-card .tags { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; align-items: center; }
+  .tag { font-size: 0.68rem; padding: 3px 9px; border-radius: 6px; font-weight: 600; letter-spacing: 0.2px; }
   .tag.momentum { background: rgba(245,158,11,0.12); color: #fbbf24; }
   .tag.pullback { background: rgba(59,130,246,0.12); color: #60a5fa; }
   .tag.win { background: rgba(34,197,94,0.12); color: #4ade80; }
@@ -126,50 +87,47 @@
   .tag.near-target { background: rgba(34,197,94,0.15); color: #4ade80; }
   .tag.editing { background: rgba(59,130,246,0.15); color: #60a5fa; }
   .tag.stable { background: rgba(138,148,166,0.15); color: #8a94a6; }
-
+  .tag.momentum-strong {
+    background: rgba(249,115,22,0.18); color: #fb923c;
+    text-shadow: 0 0 8px rgba(251,146,60,0.35);
+  }
+  .trend-badge {
+    display: inline-flex; align-items: center; gap: 3px;
+    font-size: 0.66rem; padding: 3px 8px; border-radius: 6px;
+    font-weight: 700; letter-spacing: 0.2px;
+  }
+  .trend-badge.up { background: rgba(34,197,94,0.14); color: #4ade80; }
+  .trend-badge.down { background: rgba(239,68,68,0.14); color: #f87171; }
+  .trend-badge.neutral { background: rgba(138,148,166,0.14); color: #8a94a6; }
+  .vol-check { color: var(--green); font-weight: 800; font-size: 0.8rem; margin-left: 3px; }
+  .conf-dots { display: inline-flex; gap: 3px; margin-left: 6px; vertical-align: middle; }
+  .conf-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--surface-2); }
+  .conf-dot.on { background: var(--green); box-shadow: 0 0 4px rgba(34,197,94,0.6); }
+  .conf-dot.on.mom { background: #fb923c; box-shadow: 0 0 4px rgba(251,146,60,0.6); }
+  .conf-dot.on.trend { background: #60a5fa; box-shadow: 0 0 4px rgba(96,165,250,0.6); }
+  .conf-dot.on.ev { background: var(--green); box-shadow: 0 0 4px rgba(34,197,94,0.6); }
   .score-row { display: flex; align-items: center; gap: 10px; }
   .score-row .num { font-size: 0.72rem; color: var(--muted); min-width: 32px; font-weight: 600; }
   .score-bar { flex: 1; height: 5px; background: var(--bg); border-radius: 3px; overflow: hidden; }
   .score-fill { height: 100%; border-radius: 3px; transition: width 0.4s ease; }
-
   .empty { text-align: center; padding: 50px 20px; color: var(--muted); font-size: 0.88rem; line-height: 1.6; }
   .empty .emoji { font-size: 2rem; display: block; margin-bottom: 12px; opacity: 0.6; }
-
   .banner {
     background: var(--surface); border-left: 3px solid var(--blue);
     border-radius: 8px; padding: 12px 14px; font-size: 0.8rem;
     color: var(--muted); line-height: 1.55; margin-bottom: 14px;
   }
   .banner b { color: var(--text); }
-
-  .section-title {
-    font-size: 0.72rem; font-weight: 700; text-transform: uppercase;
-    letter-spacing: 0.8px; color: var(--dim); margin: 22px 0 10px;
-  }
-  .section-header {
-    display: flex; justify-content: space-between;
-    align-items: center; margin: 22px 0 10px; gap: 10px;
-  }
+  .section-title { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px; color: var(--dim); margin: 22px 0 10px; }
+  .section-header { display: flex; justify-content: space-between; align-items: center; margin: 22px 0 10px; gap: 10px; }
   .section-header .section-title { margin: 0; }
-  .section-header button {
-    padding: 6px 12px; font-size: 0.72rem;
-    background: var(--surface-2); color: var(--muted);
-    border: 1px solid var(--border); font-weight: 600;
-  }
+  .section-header button { padding: 6px 12px; font-size: 0.72rem; background: var(--surface-2); color: var(--muted); border: 1px solid var(--border); font-weight: 600; }
   .section-header button:active { background: var(--surface); }
   .section-header button.danger { color: #f87171; }
   .section-header button.danger:active { background: rgba(239,68,68,0.1); }
-
-  .block {
-    background: var(--surface); border: 1px solid var(--border-soft);
-    border-radius: var(--radius); padding: 16px; margin-bottom: 12px;
-  }
-  .block h3 {
-    font-size: 0.9rem; margin: 0 0 14px; font-weight: 600;
-    display: flex; justify-content: space-between; align-items: center;
-  }
+  .block { background: var(--surface); border: 1px solid var(--border-soft); border-radius: var(--radius); padding: 16px; margin-bottom: 12px; }
+  .block h3 { font-size: 0.9rem; margin: 0 0 14px; font-weight: 600; display: flex; justify-content: space-between; align-items: center; }
   .block h3 .hint { font-size: 0.72rem; color: var(--dim); font-weight: 400; }
-
   input[type="text"], input[type="number"], select, textarea {
     width: 100%; padding: 11px 13px; border-radius: var(--radius-sm);
     border: 1px solid var(--border); background: var(--bg); color: var(--text);
@@ -180,40 +138,22 @@
   label { display: block; font-size: 0.72rem; color: var(--muted); margin-bottom: 6px; font-weight: 500; }
   .field { margin-bottom: 12px; }
   .field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-
-  button {
-    padding: 12px 16px; border: none; border-radius: var(--radius-sm);
-    background: var(--blue); color: #fff; font-weight: 600;
-    font-size: 0.9rem; font-family: inherit; transition: opacity 0.15s;
-  }
+  button { padding: 12px 16px; border: none; border-radius: var(--radius-sm); background: var(--blue); color: #fff; font-weight: 600; font-size: 0.9rem; font-family: inherit; transition: opacity 0.15s; }
   button:active { opacity: 0.85; }
   button.ghost { background: var(--surface-2); color: var(--text); }
   button.green { background: var(--green); }
   button.full { width: 100%; }
   button.small { padding: 8px 12px; font-size: 0.78rem; }
-
-  .preview {
-    background: var(--bg); border: 1px solid var(--border);
-    border-radius: var(--radius-sm); padding: 14px;
-    margin: 12px 0; font-size: 0.82rem; line-height: 1.7; color: var(--muted);
-  }
+  .preview { background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 14px; margin: 12px 0; font-size: 0.82rem; line-height: 1.7; color: var(--muted); }
   .preview b { color: var(--text); }
   .preview .green { color: var(--green); font-weight: 600; }
   .preview .red { color: var(--red); font-weight: 600; }
-
-  .trade {
-    background: var(--surface); border: 1px solid var(--border-soft);
-    border-radius: var(--radius); padding: 14px; margin-bottom: 10px;
-    position: relative;
-  }
+  .trade { background: var(--surface); border: 1px solid var(--border-soft); border-radius: var(--radius); padding: 14px; margin-bottom: 10px; position: relative; }
   .trade.near-stop { border-color: rgba(239,68,68,0.4); }
   .trade.near-target { border-color: rgba(34,197,94,0.4); }
   .trade.editing { border-color: var(--blue); }
   .trade.closed { opacity: 0.85; }
-  .trade .row1 {
-    display: flex; justify-content: space-between;
-    align-items: flex-start; gap: 10px; margin-bottom: 8px;
-  }
+  .trade .row1 { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; margin-bottom: 8px; }
   .trade .pair { font-size: 0.95rem; font-weight: 700; margin-right: 6px; }
   .trade .pnl { font-weight: 700; font-size: 0.92rem; text-align: right; }
   .trade .details { font-size: 0.75rem; color: var(--muted); line-height: 1.65; }
@@ -226,207 +166,80 @@
   .trade .details .closed-method.manual { color: #60a5fa; }
   .trade .actions { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
   .trade .actions button { font-size: 0.75rem; padding: 7px 14px; }
-  .trade .del {
-    position: absolute; top: 8px; right: 8px; background: transparent;
-    border: none; color: var(--dim); font-size: 14px;
-    padding: 6px; width: auto; opacity: 0.5;
-  }
+  .trade .del { position: absolute; top: 8px; right: 8px; background: transparent; border: none; color: var(--dim); font-size: 14px; padding: 6px; width: auto; opacity: 0.5; }
   .trade .del:active { opacity: 1; color: var(--red); }
-
-  .close-form, .edit-form {
-    margin-top: 12px; padding-top: 12px;
-    border-top: 1px solid var(--border-soft);
-  }
+  .close-form, .edit-form { margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--border-soft); }
   .close-form label, .edit-form label { margin-bottom: 8px; }
   .close-form input { margin-bottom: 8px; }
   .form-actions { display: flex; gap: 8px; }
   .form-actions button { flex: 1; }
-
-  .del-confirm {
-    margin-top: 10px; padding: 10px 12px;
-    background: rgba(239,68,68,0.08);
-    border-radius: 8px;
-    display: flex; align-items: center; gap: 8px;
-    font-size: 0.78rem; color: var(--muted);
-  }
+  .del-confirm { margin-top: 10px; padding: 10px 12px; background: rgba(239,68,68,0.08); border-radius: 8px; display: flex; align-items: center; gap: 8px; font-size: 0.78rem; color: var(--muted); }
   .del-confirm span { flex: 1; }
   .del-confirm button { padding: 6px 10px; font-size: 0.72rem; }
-
-  .bulk-confirm {
-    margin: 10px 0 0; padding: 12px;
-    background: rgba(239,68,68,0.08);
-    border: 1px solid rgba(239,68,68,0.3);
-    border-radius: var(--radius-sm);
-    font-size: 0.82rem; color: var(--text);
-    line-height: 1.5;
-  }
+  .bulk-confirm { margin: 10px 0 0; padding: 12px; background: rgba(239,68,68,0.08); border: 1px solid rgba(239,68,68,0.3); border-radius: var(--radius-sm); font-size: 0.82rem; color: var(--text); line-height: 1.5; }
   .bulk-confirm .bulk-actions { display: flex; gap: 8px; margin-top: 10px; }
   .bulk-confirm .bulk-actions button { flex: 1; padding: 8px; font-size: 0.78rem; }
-
   .stats-row { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-bottom: 12px; }
-  .stat {
-    background: var(--surface); border: 1px solid var(--border-soft);
-    border-radius: var(--radius-sm); padding: 12px 10px; text-align: center;
-  }
+  .stat { background: var(--surface); border: 1px solid var(--border-soft); border-radius: var(--radius-sm); padding: 12px 10px; text-align: center; }
   .stat .val { font-size: 1.05rem; font-weight: 700; letter-spacing: -0.3px; }
-  .stat .lbl {
-    font-size: 0.6rem; color: var(--dim); text-transform: uppercase;
-    letter-spacing: 0.5px; margin-top: 4px; font-weight: 600;
-  }
-
-  .insight {
-    background: var(--surface); border: 1px solid var(--border-soft);
-    border-radius: var(--radius); padding: 16px; font-size: 0.85rem;
-    line-height: 1.7; color: #b8c1d1; margin-bottom: 14px;
-  }
-  .insight .title {
-    font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.8px;
-    color: var(--dim); font-weight: 700; margin-bottom: 10px;
-  }
+  .stat .lbl { font-size: 0.6rem; color: var(--dim); text-transform: uppercase; letter-spacing: 0.5px; margin-top: 4px; font-weight: 600; }
+  .insight { background: var(--surface); border: 1px solid var(--border-soft); border-radius: var(--radius); padding: 16px; font-size: 0.85rem; line-height: 1.7; color: #b8c1d1; margin-bottom: 14px; }
+  .insight .title { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.8px; color: var(--dim); font-weight: 700; margin-bottom: 10px; }
   .insight b { color: var(--text); }
   .insight .good { color: var(--green); font-weight: 600; }
   .insight .bad { color: var(--red); font-weight: 600; }
   .insight .hl { color: #60a5fa; font-weight: 600; }
-
-  .bd-row {
-    display: flex; justify-content: space-between;
-    padding: 9px 0; font-size: 0.82rem;
-    border-bottom: 1px solid var(--border-soft);
-  }
+  .bd-row { display: flex; justify-content: space-between; padding: 9px 0; font-size: 0.82rem; border-bottom: 1px solid var(--border-soft); }
   .bd-row:last-child { border-bottom: none; }
   .bd-row .k { color: var(--muted); }
   .bd-row .v { font-weight: 600; }
-
-  .switch-row {
-    display: flex; justify-content: space-between; align-items: center;
-    padding: 14px 0; border-bottom: 1px solid var(--border-soft); gap: 14px;
-  }
+  .switch-row { display: flex; justify-content: space-between; align-items: center; padding: 14px 0; border-bottom: 1px solid var(--border-soft); gap: 14px; }
   .switch-row:last-child { border-bottom: none; }
   .switch-row .txt { flex: 1; min-width: 0; }
   .switch-row .label { font-size: 0.9rem; color: var(--text); font-weight: 500; }
   .switch-row .desc { font-size: 0.72rem; color: var(--dim); margin-top: 3px; }
-  .switch {
-    position: relative; width: 44px; height: 26px;
-    background: var(--surface-2); border-radius: 13px;
-    flex-shrink: 0; transition: background 0.2s; cursor: pointer;
-  }
-  .switch::after {
-    content: ''; position: absolute; top: 3px; left: 3px;
-    width: 20px; height: 20px; background: #fff;
-    border-radius: 50%; transition: left 0.2s;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.3);
-  }
+  .switch { position: relative; width: 44px; height: 26px; background: var(--surface-2); border-radius: 13px; flex-shrink: 0; transition: background 0.2s; cursor: pointer; }
+  .switch::after { content: ''; position: absolute; top: 3px; left: 3px; width: 20px; height: 20px; background: #fff; border-radius: 50%; transition: left 0.2s; box-shadow: 0 1px 3px rgba(0,0,0,0.3); }
   .switch.on { background: var(--blue); }
   .switch.on::after { left: 21px; }
   .switch:focus-visible { outline: 2px solid var(--blue); outline-offset: 3px; }
-
-  .perm-pill {
-    display: inline-block; padding: 3px 9px; border-radius: 6px;
-    font-size: 0.68rem; font-weight: 700; letter-spacing: 0.3px;
-    text-transform: uppercase; margin-left: 8px;
-  }
+  .perm-pill { display: inline-block; padding: 3px 9px; border-radius: 6px; font-size: 0.68rem; font-weight: 700; letter-spacing: 0.3px; text-transform: uppercase; margin-left: 8px; }
   .perm-granted { background: rgba(34,197,94,0.15); color: #4ade80; }
   .perm-denied { background: rgba(239,68,68,0.15); color: #f87171; }
   .perm-default { background: rgba(245,158,11,0.15); color: #fbbf24; }
-
-  .log-item {
-    padding: 12px; background: var(--bg); border-radius: 8px;
-    border-left: 3px solid var(--blue); margin-bottom: 8px;
-    font-size: 0.8rem; line-height: 1.5; color: var(--muted);
-  }
+  .log-item { padding: 12px; background: var(--bg); border-radius: 8px; border-left: 3px solid var(--blue); margin-bottom: 8px; font-size: 0.8rem; line-height: 1.5; color: var(--muted); }
   .log-item.win { border-left-color: var(--green); }
   .log-item.loss { border-left-color: var(--red); }
   .log-item.warn { border-left-color: var(--amber); }
   .log-item .title { color: var(--text); font-weight: 600; }
   .log-item .time { font-size: 0.68rem; color: var(--dim); margin-top: 4px; }
-
-  #alertBanner {
-    position: fixed; top: 12px; left: 12px; right: 12px;
-    padding: 14px 16px; color: #fff; font-size: 0.85rem;
-    font-weight: 600; text-align: center; z-index: 9999;
-    border-radius: var(--radius); line-height: 1.4;
-    box-shadow: 0 6px 24px rgba(0,0,0,0.4);
-    transform: translateY(calc(-100% - 24px));
-    opacity: 0; pointer-events: none;
-    transition: transform 0.35s cubic-bezier(0.4,0,0.2,1), opacity 0.25s;
-  }
+  #alertBanner { position: fixed; top: 12px; left: 12px; right: 12px; padding: 14px 16px; color: #fff; font-size: 0.85rem; font-weight: 600; text-align: center; z-index: 9999; border-radius: var(--radius); line-height: 1.4; box-shadow: 0 6px 24px rgba(0,0,0,0.4); transform: translateY(calc(-100% - 24px)); opacity: 0; pointer-events: none; transition: transform 0.35s cubic-bezier(0.4,0,0.2,1), opacity 0.25s; }
   #alertBanner.show { transform: translateY(0); opacity: 1; }
   #alertBanner.win { background: #16a34a; }
   #alertBanner.loss { background: #dc2626; }
   #alertBanner.warn { background: #d97706; }
   #alertBanner.info { background: var(--blue); }
-
-  nav {
-    position: fixed; bottom: 0; left: 0; right: 0;
-    background: var(--surface); border-top: 1px solid var(--border);
-    display: flex; padding: 8px 8px calc(8px + env(safe-area-inset-bottom));
-    z-index: 100; backdrop-filter: blur(12px);
-  }
-  nav button {
-    flex: 1; background: transparent; border: none;
-    padding: 8px 4px; border-radius: var(--radius-sm);
-    color: var(--dim); font-size: 0.68rem; font-weight: 600;
-    display: flex; flex-direction: column; align-items: center;
-    gap: 3px; letter-spacing: 0.3px; position: relative;
-  }
+  nav { position: fixed; bottom: 0; left: 0; right: 0; background: var(--surface); border-top: 1px solid var(--border); display: flex; padding: 8px 8px calc(8px + env(safe-area-inset-bottom)); z-index: 100; backdrop-filter: blur(12px); }
+  nav button { flex: 1; background: transparent; border: none; padding: 8px 4px; border-radius: var(--radius-sm); color: var(--dim); font-size: 0.68rem; font-weight: 600; display: flex; flex-direction: column; align-items: center; gap: 3px; letter-spacing: 0.3px; position: relative; }
   nav button .ico { font-size: 1.15rem; line-height: 1; }
   nav button.active { color: var(--blue); background: rgba(59,130,246,0.08); }
-  nav button .badge-dot {
-    position: absolute; top: 6px; right: 24%;
-    width: 7px; height: 7px; background: var(--red);
-    border-radius: 50%; border: 2px solid var(--surface);
-  }
+  nav button .badge-dot { position: absolute; top: 6px; right: 24%; width: 7px; height: 7px; background: var(--red); border-radius: 50%; border: 2px solid var(--surface); }
   nav button .badge-dot.hidden { display: none; }
-
   .hidden { display: none !important; }
-
-  .detail-header {
-    display: flex; align-items: flex-start; gap: 12px;
-    margin-bottom: 16px;
-  }
-  .detail-header .back-btn {
-    background: var(--surface); border: 1px solid var(--border);
-    color: var(--text); width: 38px; height: 38px;
-    border-radius: 50%; padding: 0; font-size: 18px;
-    flex-shrink: 0;
-  }
+  .detail-header { display: flex; align-items: flex-start; gap: 12px; margin-bottom: 16px; }
+  .detail-header .back-btn { background: var(--surface); border: 1px solid var(--border); color: var(--text); width: 38px; height: 38px; border-radius: 50%; padding: 0; font-size: 18px; flex-shrink: 0; }
   .detail-header .info { flex: 1; min-width: 0; }
   .detail-header .info .name { font-size: 1.05rem; font-weight: 700; }
   .detail-header .info .symbol { font-size: 0.72rem; color: var(--muted); margin-top: 2px; }
   .detail-header .right { text-align: right; }
   .detail-header .right .price { font-size: 1.05rem; font-weight: 700; }
   .detail-header .right .change { font-size: 0.8rem; font-weight: 600; margin-top: 2px; }
-
-  .period-tabs {
-    display: flex; gap: 6px; margin-bottom: 12px;
-  }
-  .period-tabs button {
-    flex: 1; padding: 8px 0; font-size: 0.78rem;
-    background: var(--surface); color: var(--muted);
-    border: 1px solid var(--border); border-radius: var(--radius-sm);
-    font-weight: 600;
-  }
-  .period-tabs button.active {
-    background: var(--blue); color: #fff; border-color: var(--blue);
-  }
-
-  #chartContainer {
-    background: var(--surface); border: 1px solid var(--border-soft);
-    border-radius: var(--radius); padding: 8px;
-    margin-bottom: 14px; min-height: 320px;
-    position: relative;
-  }
-  #chartContainer .chart-status {
-    position: absolute; inset: 0; display: flex;
-    align-items: center; justify-content: center;
-    color: var(--muted); font-size: 0.85rem;
-    pointer-events: none;
-  }
-
-  .legend {
-    display: flex; gap: 14px; font-size: 0.72rem;
-    color: var(--muted); margin-bottom: 12px; flex-wrap: wrap;
-  }
+  .period-tabs { display: flex; gap: 6px; margin-bottom: 12px; }
+  .period-tabs button { flex: 1; padding: 8px 0; font-size: 0.78rem; background: var(--surface); color: var(--muted); border: 1px solid var(--border); border-radius: var(--radius-sm); font-weight: 600; }
+  .period-tabs button.active { background: var(--blue); color: #fff; border-color: var(--blue); }
+  #chartContainer { background: var(--surface); border: 1px solid var(--border-soft); border-radius: var(--radius); padding: 8px; margin-bottom: 14px; min-height: 320px; position: relative; }
+  #chartContainer .chart-status { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; color: var(--muted); font-size: 0.85rem; pointer-events: none; }
+  .legend { display: flex; gap: 14px; font-size: 0.72rem; color: var(--muted); margin-bottom: 12px; flex-wrap: wrap; }
   .legend .item { display: flex; align-items: center; gap: 5px; }
   .legend .swatch { width: 12px; height: 3px; border-radius: 2px; }
 </style>
@@ -450,6 +263,7 @@
       <button class="chip active" data-filter="winners" aria-pressed="true">🏆 Winners</button>
       <button class="chip" data-filter="momentum" aria-pressed="false">🚀 Momentum</button>
       <button class="chip" data-filter="pullback" aria-pressed="false">📉 Pullback</button>
+      <button class="chip" data-filter="confluence" aria-pressed="false">✨ Confluence</button>
       <button class="chip" data-filter="all" aria-pressed="false">All Coins</button>
     </div>
     <div class="search-wrap">
@@ -753,10 +567,164 @@ function ch30(c) { return c.price_change_percentage_30d_in_currency ?? c.price_c
 function volRatio(c) { return c.market_cap ? c.total_volume / c.market_cap : 0; }
 
 /* ============================================================
+   TECHNICAL INDICATORS (Binance 1h klines, 10-min cache)
+============================================================ */
+const indicatorsCache = {};
+const indicatorInFlight = new Set();
+let enrichTimer = null;
+
+function sma(arr, period) {
+  if (!arr || arr.length < period) return null;
+  let sum = 0;
+  for (let i = arr.length - period; i < arr.length; i++) sum += arr[i];
+  return sum / period;
+}
+
+function emaSeries(arr, period) {
+  if (!arr || arr.length < period) return null;
+  const k = 2 / (period + 1);
+  const out = new Array(arr.length).fill(null);
+  let seed = 0;
+  for (let i = 0; i < period; i++) seed += arr[i];
+  out[period - 1] = seed / period;
+  for (let i = period; i < arr.length; i++) {
+    out[i] = arr[i] * k + out[i - 1] * (1 - k);
+  }
+  return out;
+}
+
+function computeMacd(closes, fast = 12, slow = 26, signalP = 9) {
+  if (closes.length < slow + signalP) return null;
+  const emaF = emaSeries(closes, fast);
+  const emaS = emaSeries(closes, slow);
+  if (!emaF || !emaS) return null;
+  const macdLine = [];
+  for (let i = 0; i < closes.length; i++) {
+    if (emaF[i] == null || emaS[i] == null) continue;
+    macdLine.push(emaF[i] - emaS[i]);
+  }
+  if (macdLine.length < signalP + 1) return null;
+  const sig = emaSeries(macdLine, signalP);
+  if (!sig) return null;
+  const n = macdLine.length - 1;
+  const macdNow = macdLine[n], sigNow = sig[n];
+  const macdPrev = macdLine[n - 1], sigPrev = sig[n - 1];
+  return {
+    macdNow, sigNow,
+    aboveSignal: macdNow > sigNow,
+    bullishCross: macdNow > sigNow && macdPrev <= sigPrev
+  };
+}
+
+function computeRsi(closes, period = 14) {
+  if (closes.length < period + 1) return null;
+  let gains = 0, losses = 0;
+  for (let i = 1; i <= period; i++) {
+    const d = closes[i] - closes[i - 1];
+    if (d >= 0) gains += d; else losses -= d;
+  }
+  let avgGain = gains / period;
+  let avgLoss = losses / period;
+  for (let i = period + 1; i < closes.length; i++) {
+    const d = closes[i] - closes[i - 1];
+    const g = d > 0 ? d : 0;
+    const l = d < 0 ? -d : 0;
+    avgGain = (avgGain * (period - 1) + g) / period;
+    avgLoss = (avgLoss * (period - 1) + l) / period;
+  }
+  if (avgLoss === 0) return 100;
+  const rs = avgGain / avgLoss;
+  return 100 - (100 / (1 + rs));
+}
+
+async function fetchBinanceKlines(symbol, interval = '1h', limit = 200) {
+  const url = `https://api.binance.com/api/v3/klines?symbol=${encodeURIComponent(symbol)}&interval=${interval}&limit=${limit}`;
+  const res = await fetch(url);
+  if (!res.ok) throw new Error('Binance ' + res.status);
+  return await res.json();
+}
+
+async function computeIndicators(coin) {
+  const symbol = coin.symbol.toUpperCase() + 'USDT';
+  try {
+    const klines = await fetchBinanceKlines(symbol);
+    if (!Array.isArray(klines) || klines.length < 30) throw new Error('Not enough candles');
+    const closes = klines.map(k => parseFloat(k[4]));
+    const volumes = klines.map(k => parseFloat(k[5]));
+    const price = closes[closes.length - 1];
+
+    const s50 = sma(closes, 50);
+    const s200 = sma(closes, 200);
+    let trend = 'neutral';
+    if (s50 != null && s200 != null) {
+      if (price > s50 && s50 > s200) trend = 'up';
+      else if (price < s50 && s50 < s200) trend = 'down';
+      else trend = 'mixed';
+    } else if (s50 != null) {
+      trend = price > s50 ? 'up-partial' : 'down-partial';
+    }
+
+    const m = computeMacd(closes);
+    const r = computeRsi(closes);
+    let momentum = 'neutral';
+    if (m && r != null) {
+      if ((m.bullishCross || m.aboveSignal) && r > 55) momentum = 'strong';
+      else if (m.aboveSignal && r > 50) momentum = 'mild';
+      else if (!m.aboveSignal && r < 50) momentum = 'weak';
+    }
+
+    const avgVol20 = sma(volumes, 20);
+    const lastVol = volumes[volumes.length - 1];
+    let volume = 'neutral';
+    if (avgVol20 != null) {
+      if (lastVol > avgVol20 * 1.15) volume = 'high';
+      else if (lastVol < avgVol20 * 0.7) volume = 'low';
+    }
+
+    return { trend, momentum, volume, ts: Date.now() };
+  } catch (e) {
+    return { trend: 'neutral', momentum: 'neutral', volume: 'neutral', ts: Date.now(), error: true };
+  }
+}
+
+/* Worker pool: 6 concurrent (matches browser per-origin limit).
+   A new request starts the instant one finishes — no chunk waiting. */
+async function enrichCoins(coins) {
+  const STALE = 10 * 60 * 1000;
+  const now = Date.now();
+  const todo = coins.filter(c => {
+    if (indicatorInFlight.has(c.id)) return false;
+    const cached = indicatorsCache[c.id];
+    if (!cached) return true;
+    return now - cached.ts > STALE;
+  });
+  if (!todo.length) return;
+
+  todo.forEach(c => indicatorInFlight.add(c.id));
+
+  const CONCURRENCY = 6;
+  let cursor = 0;
+
+  async function worker() {
+    while (cursor < todo.length) {
+      const idx = cursor++;
+      const coin = todo[idx];
+      const ind = await computeIndicators(coin);
+      indicatorsCache[coin.id] = ind;
+      indicatorInFlight.delete(coin.id);
+
+      if (currentView === 'scan') {
+        clearTimeout(enrichTimer);
+        enrichTimer = setTimeout(renderCoinList, 300);
+      }
+    }
+  }
+
+  await Promise.all(Array.from({ length: CONCURRENCY }, worker));
+}
+
+/* ============================================================
    STABLECOIN DETECTION
-   A coin pegged near $1 with tiny movements across every
-   timeframe. Excluded from the winner list so they don't
-   pollute the signal.
 ============================================================ */
 function isStablecoin(c) {
   const p = c.current_price ?? 0;
@@ -776,51 +744,64 @@ function isPullback(c) {
 }
 
 /* ============================================================
-   RISK-ADJUSTED WINNER SCORE  (0-100)
-   Four orthogonal components, each bounded by its own
-   mathematical function so no post-hoc clamping is needed.
-
-     Trend Strength   (0-30)  sigmoid of weighted daily return
-     Consistency      (0-25)  inverse of mean absolute deviation
-     Liquidity        (0-25)  tanh of volume/marketcap ratio
-     Cap Stability    (0-20)  log-scale of market cap rank
+   CONFLUENCE SCORE (0-100)
+     Trend (SMA 50/200)      → up to 25
+     Momentum (MACD + RSI)   → up to 25
+     Volume vs 20-period avg → up to 15
+     Quality base            → up to 35
 ============================================================ */
-function winnerScore(c) {
-  // --- Trend Strength ---
-  // Convert 24h / 7d / 30d changes to daily rates, then blend
-  // with exponential weighting that favours recent action.
-  const r1  = ch24(c);
-  const r7  = ch7(c) / 7;
-  const r30 = ch30(c) / 30;
+function qualityScore35(c) {
+  const r1  = ch24(c), r7 = ch7(c) / 7, r30 = ch30(c) / 30;
   const trend = r1 * 0.5 + r7 * 0.3 + r30 * 0.2;
-
-  // Sigmoid centered at +2% daily return, output 0-1, then ×30.
-  const trendScore = (1 / (1 + Math.exp(-trend / 2))) * 30;
-
-  // --- Consistency ---
-  // How aligned are the three timeframes? High alignment = smooth
-  // trend. Low alignment = spike / pump / dead cat bounce.
+  const trendScore = (1 / (1 + Math.exp(-trend / 2))) * 30 * 0.35;
   const mean = (r1 + r7 + r30) / 3;
   const mad = (Math.abs(r1 - mean) + Math.abs(r7 - mean) + Math.abs(r30 - mean)) / 3;
-  const consistencyScore = (1 / (1 + mad / 3)) * 25;
-
-  // --- Liquidity ---
-  // tanh gives smooth saturation; ratio of 5% (vol / mcap) → ~76%.
-  const liqScore = Math.tanh(volRatio(c) / 0.05) * 25;
-
-  // --- Cap Stability ---
-  // Lower rank = more stable; log scale so #1 vs #10 vs #100
-  // matter at the right magnitudes.
+  const consistencyScore = (1 / (1 + mad / 3)) * 25 * 0.35;
+  const liqScore = Math.tanh(volRatio(c) / 0.05) * 25 * 0.35;
   const rank = c.market_cap_rank ?? 500;
-  const capScore = Math.max(0, 20 - Math.log10(rank + 1) * 4);
-
-  return Math.round(
-    Math.max(0, trendScore) +
-    Math.max(0, consistencyScore) +
-    Math.max(0, liqScore) +
-    Math.max(0, capScore)
-  );
+  const capScore = Math.max(0, 20 - Math.log10(rank + 1) * 4) * 0.35;
+  return trendScore + consistencyScore + liqScore + capScore;
 }
+
+function confluenceScore(c) {
+  const ind = indicatorsCache[c.id];
+
+  let trendPts = 12, momentumPts = 12, volumePts = 7;
+
+  if (ind) {
+    if (ind.trend === 'up') trendPts = 25;
+    else if (ind.trend === 'up-partial') trendPts = 18;
+    else if (ind.trend === 'down') trendPts = 0;
+    else if (ind.trend === 'down-partial') trendPts = 5;
+    else trendPts = 12;
+
+    if (ind.momentum === 'strong') momentumPts = 25;
+    else if (ind.momentum === 'mild') momentumPts = 16;
+    else if (ind.momentum === 'weak') momentumPts = 4;
+    else momentumPts = 12;
+
+    if (ind.volume === 'high') volumePts = 15;
+    else if (ind.volume === 'low') volumePts = 3;
+    else volumePts = 7;
+  }
+
+  const base = qualityScore35(c);
+  return Math.max(0, Math.min(100, Math.round(trendPts + momentumPts + volumePts + base)));
+}
+
+function winnerScore(c) { return confluenceScore(c); }
+
+function confluenceCount(c) {
+  const ind = indicatorsCache[c.id];
+  if (!ind) return 0;
+  let n = 0;
+  if (ind.trend === 'up' || ind.trend === 'up-partial') n++;
+  if (ind.momentum === 'strong') n++;
+  if (ind.volume === 'high') n++;
+  if (expectedValue(c) > 0) n++;
+  return n;
+}
+
 function scoreColor(s) {
   if (s >= 70) return 'var(--green)';
   if (s >= 50) return '#fbbf24';
@@ -828,44 +809,30 @@ function scoreColor(s) {
   return 'var(--red)';
 }
 
-/* ============================================================
-   WIN CHANCE ESTIMATE — LOGISTIC MODEL
-   Works in log-odds space. Each signal contributes a bounded
-   amount. Convert back to probability at the end.
-============================================================ */
 function estimateWinChance(c) {
   const isMom = isMomentumBurst(c);
   const isPull = isPullback(c);
-
-  // 1. Base log-odds from historical setup rates
   let baseP = 0.30;
   if (isPull) baseP = 0.46;
   else if (isMom) baseP = 0.28;
   let logOdds = Math.log(baseP / (1 - baseP));
 
-  // 2. Quality score contribution (−0.8 .. +0.8)
   const qs = winnerScore(c);
   logOdds += ((qs - 50) / 50) * 0.8;
 
-  // 3. Liquidity contribution (−0.6 .. +0.6)
   const v = volRatio(c);
   logOdds += Math.max(-0.6, Math.min(0.6, (v - 0.05) * 10));
 
-  // 4. Trend alignment bonus — timeframes agreeing is meaningful
   const a = ch24(c), w = ch7(c), m = ch30(c);
   if (a > 0 && w > 0) logOdds += 0.3;
   if (w > 0 && m > 0) logOdds += 0.3;
   if (a > 0 && m > 0) logOdds += 0.2;
-
-  // 5. Extreme-move penalty — big spikes often reverse
   if (Math.abs(a) > 6) logOdds -= 0.4;
 
-  // 6. Cap rank bonus / penalty
   const rank = c.market_cap_rank ?? 500;
   if (rank <= 20) logOdds += 0.2;
   else if (rank >= 100) logOdds -= 0.3;
 
-  // Convert log-odds → probability
   const p = 1 / (1 + Math.exp(-logOdds));
   return Math.max(8, Math.min(65, Math.round(p * 100)));
 }
@@ -875,13 +842,11 @@ function setupRR(c) {
   if (isMomentumBurst(c)) return 2.25;
   return 1.75;
 }
-
 function expectedValue(c) {
   const p = estimateWinChance(c) / 100;
   const rr = setupRR(c);
   return (p * rr) - ((1 - p) * 1);
 }
-
 function chanceColor(p) {
   if (p >= 55) return 'var(--green)';
   if (p >= 42) return '#fbbf24';
@@ -892,9 +857,7 @@ function chanceColor(p) {
 /* ============================================================
    SETTINGS
 ============================================================ */
-function loadSettings() {
-  return safeGet(SETTINGS_KEY, { balance: 100, riskPct: 1 });
-}
+function loadSettings() { return safeGet(SETTINGS_KEY, { balance: 100, riskPct: 1 }); }
 function saveSettings(s) { safeSet(SETTINGS_KEY, s); }
 
 const DEFAULT_ALERT_SETTINGS = {
@@ -965,10 +928,7 @@ if ('serviceWorker' in navigator && location.protocol !== 'file:') {
 
 async function pushNative(title, body, tag = 'crypto-general') {
   if (!('Notification' in window) || Notification.permission !== 'granted') return;
-  const opts = {
-    body, tag, renotify: true, silent: true,
-    icon: ICON_DATA_URL, badge: ICON_DATA_URL
-  };
+  const opts = { body, tag, renotify: true, silent: true, icon: ICON_DATA_URL, badge: ICON_DATA_URL };
   try {
     let reg = swReg;
     if (!reg && swReady) reg = await swReady;
@@ -980,7 +940,6 @@ async function pushNative(title, body, tag = 'crypto-general') {
       return;
     }
   } catch (e) { /* fall through */ }
-
   try {
     const n = new Notification(title, opts);
     setTimeout(() => { try { n.close(); } catch(e){} }, 15000);
@@ -1015,7 +974,7 @@ function fireAlert(kind, title, message, tag) {
 }
 
 /* ============================================================
-   COIN LOOKUP (handles duplicate symbols)
+   COIN LOOKUP
 ============================================================ */
 function findCoinLive(symbol, coinId) {
   if (coinId) {
@@ -1034,7 +993,7 @@ function findCoinLive(symbol, coinId) {
 }
 
 /* ============================================================
-   COIN CARDS
+   COIN CARD
 ============================================================ */
 function coinCardHTML(c, highlight) {
   const a = ch24(c), w = ch7(c), m = ch30(c);
@@ -1042,9 +1001,34 @@ function coinCardHTML(c, highlight) {
   const s = winnerScore(c);
   const chance = estimateWinChance(c);
   const ev = expectedValue(c);
+  const ind = indicatorsCache[c.id];
+
   const tags = [];
   if (isMomentumBurst(c)) tags.push('<span class="tag momentum">Momentum</span>');
   if (isPullback(c)) tags.push('<span class="tag pullback">Pullback</span>');
+  if (ind && ind.momentum === 'strong') {
+    tags.push('<span class="tag momentum-strong">⚡ Strong Momentum</span>');
+  }
+
+  let trendBadge = '';
+  if (ind) {
+    if (ind.trend === 'up') trendBadge = '<span class="trend-badge up">↗ Trend UP</span>';
+    else if (ind.trend === 'up-partial') trendBadge = '<span class="trend-badge up">↗ Above 50MA</span>';
+    else if (ind.trend === 'down') trendBadge = '<span class="trend-badge down">↘ Trend DOWN</span>';
+    else if (ind.trend === 'down-partial') trendBadge = '<span class="trend-badge down">↘ Below 50MA</span>';
+    else trendBadge = '<span class="trend-badge neutral">→ Neutral</span>';
+  }
+
+  const volCheck = ind && ind.volume === 'high' ? '<span class="vol-check">✓</span>' : '';
+
+  const confCount = confluenceCount(c);
+  const confDots = ind ? `
+    <span class="conf-dots" title="${confCount} of 4 conditions met">
+      <span class="conf-dot trend ${ind.trend === 'up' || ind.trend === 'up-partial' ? 'on' : ''}"></span>
+      <span class="conf-dot mom ${ind.momentum === 'strong' ? 'on' : ''}"></span>
+      <span class="conf-dot vol ${ind.volume === 'high' ? 'on' : ''}"></span>
+      <span class="conf-dot ev ${ev > 0 ? 'on' : ''}"></span>
+    </span>` : '';
 
   const chanceBlock = highlight ? `
     <div style="margin:12px 0 10px;padding:12px;background:var(--bg);border-radius:10px;text-align:center;border:1px solid ${chanceColor(chance)}33">
@@ -1065,12 +1049,12 @@ function coinCardHTML(c, highlight) {
           <div class="change ${cls}">${a >= 0 ? '+' : ''}${a.toFixed(2)}%</div>
         </div>
       </div>
-      ${tags.length ? `<div class="tags">${tags.join('')}</div>` : ''}
+      ${tags.length || trendBadge ? `<div class="tags">${tags.join('')}${trendBadge}${confDots}</div>` : ''}
       ${chanceBlock}
       <div class="metrics">
         <div>7d <span class="${w >= 0 ? 'up' : 'down'}">${w >= 0 ? '+' : ''}${w.toFixed(1)}%</span></div>
         <div>30d <span class="${m >= 0 ? 'up' : 'down'}">${m >= 0 ? '+' : ''}${m.toFixed(0)}%</span></div>
-        <div>Vol <span>${money(c.total_volume)}</span></div>
+        <div>Vol <span>${money(c.total_volume)}</span>${volCheck}</div>
       </div>
       <div class="score-row">
         <div class="num" style="color:${scoreColor(s)}">${s}</div>
@@ -1079,6 +1063,9 @@ function coinCardHTML(c, highlight) {
     </div>`;
 }
 
+/* ============================================================
+   COIN LIST RENDER
+============================================================ */
 function renderCoinList() {
   const q = $('search').value.trim().toLowerCase();
   let list;
@@ -1086,35 +1073,52 @@ function renderCoinList() {
   if (currentFilter === 'momentum') list = allCoins.filter(isMomentumBurst);
   else if (currentFilter === 'pullback') list = allCoins.filter(isPullback);
   else if (currentFilter === 'winners') list = allCoins.filter(c => isMomentumBurst(c) || isPullback(c));
+  else if (currentFilter === 'confluence') {
+    list = allCoins.filter(c => !isStablecoin(c) && confluenceCount(c) >= 3);
+  }
   else list = allCoins;
 
-  // Stablecoins pollute the list — exclude them from every view
   list = list.filter(c => !isStablecoin(c));
-
   list = list.slice().sort((a, b) => winnerScore(b) - winnerScore(a));
   if (q) list = list.filter(c => c.name.toLowerCase().includes(q) || c.symbol.toLowerCase().includes(q));
 
   const el = $('coinList');
 
-  const explainer = currentFilter === 'winners' ? `
-    <div class="banner" style="border-left-color:var(--amber);margin-bottom:16px">
-      <b>What the % means.</b> It's an estimate based on how similar setups performed historically, adjusted by this coin's quality score. <b>It is not a guarantee.</b> A 30% chance with a 2:1 reward is often better than a 60% chance with a 0.5:1 reward — that's why Expected Value is shown too. <b>Green EV = profitable long-term, red EV = losing long-term.</b>
-    </div>` : '';
+  let explainer = '';
+  if (currentFilter === 'winners') {
+    explainer = `
+      <div class="banner" style="border-left-color:var(--amber);margin-bottom:16px">
+        <b>What the % means.</b> It's an estimate based on how similar setups performed historically, adjusted by this coin's quality score. <b>It is not a guarantee.</b> A 30% chance with a 2:1 reward is often better than a 60% chance with a 0.5:1 reward — that's why Expected Value is shown too. <b>Green EV = profitable long-term, red EV = losing long-term.</b>
+      </div>`;
+  } else if (currentFilter === 'confluence') {
+    explainer = `
+      <div class="banner" style="border-left-color:var(--green);margin-bottom:16px">
+        <b>✨ Confluence filter.</b> Only shows coins where <b>3 or 4 of these 4 conditions</b> are true:
+        <span style="color:#60a5fa">Trend UP</span> (SMA 50 &gt; 200), 
+        <span style="color:#fb923c">Strong Momentum</span> (MACD + RSI), 
+        <span style="color:var(--green)">High Volume</span> (vs 20-period avg), 
+        <span style="color:var(--green)">Green EV</span>.
+        Coins may take a moment to appear as technical data loads.
+      </div>`;
+  }
 
   if (!list.length) {
     const msgs = {
       winners: ['🏆', 'No qualified setups right now.', 'This is the correct result most of the time. Wait for the setup.'],
       momentum: ['🚀', 'No momentum setups.', 'Needs a coin up 3–8% today with a positive 7-day trend.'],
       pullback: ['📉', 'No pullback setups.', 'Needs a coin up 12%+ this week that dipped 2–5% today.'],
+      confluence: ['✨', 'No confluence setups yet.', 'Coins must meet 3 of 4 conditions. Technical data is loading — check back in a moment.'],
       all: ['📊', 'No coins found.', 'Try refreshing.']
     };
     const [e, t, s] = msgs[currentFilter] || msgs.all;
     el.innerHTML = explainer + `<div class="empty"><span class="emoji">${e}</span><b>${t}</b><br>${s}</div>`;
-    return;
+  } else {
+    const highlight = currentFilter === 'winners' || currentFilter === 'confluence';
+    el.innerHTML = explainer + list.map(c => coinCardHTML(c, highlight)).join('');
   }
 
-  const highlight = currentFilter === 'winners';
-  el.innerHTML = explainer + list.map(c => coinCardHTML(c, highlight)).join('');
+  const toEnrich = list.slice(0, 40);
+  if (toEnrich.length) enrichCoins(toEnrich);
 }
 
 /* ============================================================
@@ -1128,11 +1132,9 @@ let fetching = false;
 async function fetchCrypto() {
   if (fetching) return;
   fetching = true;
-
   const btn = $('refreshBtn');
   btn.classList.add('spin');
   btn.disabled = true;
-
   try {
     const res = await fetch(API_URL);
     if (!res.ok) throw new Error('HTTP ' + res.status);
@@ -1276,7 +1278,7 @@ function checkNewSetups({ silent = false } = {}) {
 }
 
 /* ============================================================
-   JOURNAL: AUTO-FILL
+   JOURNAL: AUTO-FILL + ADD
 ============================================================ */
 function clearTradeFields() {
   ['jEntry','jStop','jTarget','jSize'].forEach(id => { $(id).value = ''; });
@@ -1348,10 +1350,8 @@ function addTrade() {
   const live = findCoinLive(coin);
   const trades = loadTrades();
   trades.unshift({
-    id: Date.now(),
-    date: new Date().toISOString(),
-    coin,
-    coinId: live ? live.id : null,
+    id: Date.now(), date: new Date().toISOString(),
+    coin, coinId: live ? live.id : null,
     setup, entry, stop, target, size, notes,
     status: 'open', exit: null, pnl: null,
     alertedStop: false, alertedTarget: false
@@ -1390,12 +1390,10 @@ function closeTradeManual(id) {
   saveTrades(trades);
   closingTradeId = null;
   closingExitValue = '';
-  fireAlert(
-    t.status === 'win' ? 'win' : 'loss',
+  fireAlert(t.status === 'win' ? 'win' : 'loss',
     `${t.status === 'win' ? '✅' : '🛑'} ${t.coin} closed`,
     `${t.pnl >= 0 ? '+' : ''}${money(Math.abs(t.pnl))}`,
-    'trade-' + t.coin
-  );
+    'trade-' + t.coin);
   renderJournal();
 }
 
@@ -1430,12 +1428,9 @@ function beginEditTrade(id) {
   if (!t) return;
   editingTradeId = id;
   editDraft = {
-    coin: t.coin,
-    setup: t.setup,
-    entry: String(t.entry),
-    stop: String(t.stop),
-    target: String(t.target),
-    size: String(t.size || 0),
+    coin: t.coin, setup: t.setup,
+    entry: String(t.entry), stop: String(t.stop),
+    target: String(t.target), size: String(t.size || 0),
     notes: t.notes || ''
   };
   closingTradeId = null;
@@ -1483,13 +1478,9 @@ function saveEditedTrade(id) {
     t.coinId = live ? live.id : null;
   }
 
-  t.coin = coin;
-  t.setup = setup;
-  t.entry = entry;
-  t.stop = stop;
-  t.target = target;
-  t.size = size;
-  t.notes = notes;
+  t.coin = coin; t.setup = setup;
+  t.entry = entry; t.stop = stop; t.target = target;
+  t.size = size; t.notes = notes;
 
   if (t.status === 'win' || t.status === 'loss') {
     if (t.exit != null) {
@@ -1843,7 +1834,7 @@ function switchView(view) {
 }
 
 /* ============================================================
-   CHART / DETAIL VIEW
+   CHART / DETAIL
 ============================================================ */
 let currentChart = null;
 let currentChartSeries = null;
@@ -2041,18 +2032,30 @@ function renderDetailStats(coin) {
   const isMom = isMomentumBurst(coin);
   const isPull = isPullback(coin);
   const stable = isStablecoin(coin);
+  const ind = indicatorsCache[coin.id];
 
   const tags = [];
   if (stable) tags.push('<span class="tag stable">Stablecoin</span>');
   if (isMom) tags.push('<span class="tag momentum">Momentum</span>');
   if (isPull) tags.push('<span class="tag pullback">Pullback</span>');
+  if (ind && ind.momentum === 'strong') tags.push('<span class="tag momentum-strong">⚡ Strong Momentum</span>');
   if (!stable && !isMom && !isPull) tags.push('<span class="tag open">No setup</span>');
 
+  let trendBadge = '';
+  if (ind) {
+    if (ind.trend === 'up') trendBadge = '<span class="trend-badge up">↗ Trend UP</span>';
+    else if (ind.trend === 'up-partial') trendBadge = '<span class="trend-badge up">↗ Above 50MA</span>';
+    else if (ind.trend === 'down') trendBadge = '<span class="trend-badge down">↘ Trend DOWN</span>';
+    else if (ind.trend === 'down-partial') trendBadge = '<span class="trend-badge down">↘ Below 50MA</span>';
+    else trendBadge = '<span class="trend-badge neutral">→ Neutral</span>';
+  }
+
   const a = ch24(coin), w = ch7(coin), m = ch30(coin);
+  const confCount = confluenceCount(coin);
 
   $('dStats').innerHTML = `
     <div class="block">
-      <div style="margin-bottom:10px">${tags.join('')}</div>
+      <div style="margin-bottom:10px">${tags.join('')}${trendBadge}</div>
       <div class="bd-row"><span class="k">24h change</span>
         <span class="v ${a >= 0 ? 'up' : 'down'}">${a >= 0 ? '+' : ''}${a.toFixed(2)}%</span></div>
       <div class="bd-row"><span class="k">7d change</span>
@@ -2063,7 +2066,9 @@ function renderDetailStats(coin) {
         <span class="v">${money(coin.market_cap)}</span></div>
       <div class="bd-row"><span class="k">Volume (24h)</span>
         <span class="v">${money(coin.total_volume)}</span></div>
-      <div class="bd-row"><span class="k">Winner score</span>
+      <div class="bd-row"><span class="k">Confluence signals</span>
+        <span class="v" style="color:${confCount >= 3 ? 'var(--green)' : '#fbbf24'}">${confCount} of 4</span></div>
+      <div class="bd-row"><span class="k">Confluence score</span>
         <span class="v" style="color:${scoreColor(s)}">${s} / 100</span></div>
       <div class="bd-row"><span class="k">Estimated win chance</span>
         <span class="v" style="color:${chanceColor(chance)}">${chance}%</span></div>
@@ -2093,7 +2098,6 @@ function exitDetail(to = 'scan') {
   cleanupDetailChart();
   switchView(to);
 }
-
 function closeCoinDetail() { exitDetail('scan'); }
 
 function openJournalForDetailCoin() {
@@ -2197,15 +2201,8 @@ $('clearClosedBtn').addEventListener('click', () => {
 });
 
 $('bulkConfirmSlot').addEventListener('click', e => {
-  if (e.target.closest('.bulk-cancel')) {
-    bulkConfirmOpen = false;
-    renderJournal();
-    return;
-  }
-  if (e.target.closest('.bulk-confirm-yes')) {
-    clearClosedTrades();
-    return;
-  }
+  if (e.target.closest('.bulk-cancel')) { bulkConfirmOpen = false; renderJournal(); return; }
+  if (e.target.closest('.bulk-confirm-yes')) { clearClosedTrades(); return; }
 });
 
 $('journalList').addEventListener('click', e => {
@@ -2221,7 +2218,6 @@ $('journalList').addEventListener('click', e => {
   }
   const delCancel = e.target.closest('.del-cancel');
   if (delCancel) { deletingTradeId = null; renderJournal(); return; }
-
   const delYes = e.target.closest('.del-yes');
   if (delYes) { deleteTrade(Number(delYes.dataset.id)); return; }
 
@@ -2241,38 +2237,27 @@ $('journalList').addEventListener('click', e => {
   }
   const closeCancel = e.target.closest('.close-cancel');
   if (closeCancel) { closingTradeId = null; closingExitValue = ''; renderJournal(); return; }
-
   const closeConfirm = e.target.closest('.close-confirm');
   if (closeConfirm) { closeTradeManual(Number(closeConfirm.dataset.id)); return; }
 
   const editBtn = e.target.closest('.edit-btn');
   if (editBtn) { beginEditTrade(Number(editBtn.dataset.id)); return; }
-
   const editCancel = e.target.closest('.edit-cancel');
   if (editCancel) { cancelEditTrade(); return; }
-
   const editSave = e.target.closest('.edit-save');
   if (editSave) { saveEditedTrade(Number(editSave.dataset.id)); return; }
 });
 
 $('journalList').addEventListener('input', e => {
   const editInput = e.target.closest('.edit-field');
-  if (editInput && editDraft) {
-    editDraft[editInput.dataset.field] = editInput.value;
-    return;
-  }
+  if (editInput && editDraft) { editDraft[editInput.dataset.field] = editInput.value; return; }
   const closeInp = e.target.closest('.close-exit-input');
-  if (closeInp) {
-    closingExitValue = closeInp.value;
-    closeInp.style.borderColor = '';
-  }
+  if (closeInp) { closingExitValue = closeInp.value; closeInp.style.borderColor = ''; }
 });
 
 $('journalList').addEventListener('change', e => {
   const editInput = e.target.closest('.edit-field');
-  if (editInput && editDraft) {
-    editDraft[editInput.dataset.field] = editInput.value;
-  }
+  if (editInput && editDraft) { editDraft[editInput.dataset.field] = editInput.value; }
 });
 
 ['enabled','sound','vibrate','notify','nearStop','nearTarget','onClose','onSetup'].forEach(k => {
