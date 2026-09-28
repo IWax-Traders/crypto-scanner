@@ -64,10 +64,10 @@
   .coin-card {
     background: var(--surface); border: 1px solid var(--border-soft);
     border-radius: var(--radius); padding: 16px; margin-bottom: 10px;
-    transition: border-color 0.15s;
+    transition: border-color 0.15s; overflow: hidden;
   }
   .coin-card.highlight { border-color: var(--blue); }
-  .coin-card.parabolic { border-color: rgba(239,68,68,0.55); }
+  .coin-card.parabolic { border-color: rgba(239,68,68,0.5); }
   .coin-card .top { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; margin-bottom: 12px; }
   .coin-card .name { font-size: 1rem; font-weight: 700; letter-spacing: -0.1px; }
   .coin-card .symbol { font-size: 0.75rem; color: var(--muted); margin-top: 2px; letter-spacing: 0.3px; }
@@ -77,7 +77,50 @@
   .up { color: var(--green); } .down { color: var(--red); } .flat { color: var(--muted); }
   .coin-card .metrics { display: flex; gap: 16px; font-size: 0.78rem; color: var(--muted); margin-bottom: 12px; flex-wrap: wrap; }
   .coin-card .metrics span { color: var(--text); font-weight: 600; }
-  .coin-card .tags { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; align-items: center; }
+
+  /* === Clean signal row === */
+  .sig-row {
+    display: flex; gap: 8px; margin-bottom: 10px;
+    align-items: center; flex-wrap: wrap;
+  }
+  .sig-badge {
+    font-size: 0.72rem; padding: 4px 10px; border-radius: 6px;
+    font-weight: 700; letter-spacing: 0.2px;
+  }
+  .sig-badge.momentum { background: rgba(245,158,11,0.14); color: #fbbf24; }
+  .sig-badge.momentum-strong {
+    background: rgba(249,115,22,0.22); color: #fb923c;
+    box-shadow: 0 0 10px rgba(251,146,60,0.2);
+  }
+  .sig-badge.pullback { background: rgba(59,130,246,0.14); color: #60a5fa; }
+  .trend-pill {
+    font-size: 0.68rem; padding: 3px 8px; border-radius: 5px;
+    font-weight: 700; letter-spacing: 0.3px; opacity: 0.85;
+  }
+  .trend-pill.up { background: rgba(34,197,94,0.12); color: #4ade80; }
+  .trend-pill.down { background: rgba(239,68,68,0.12); color: #f87171; }
+  .trend-pill.neutral { background: rgba(138,148,166,0.12); color: #8a94a6; }
+
+  /* Compact chance block */
+  .chance-block {
+    display: flex; align-items: center; gap: 12px;
+    padding: 10px 12px; margin: 8px 0 10px;
+    background: var(--bg); border-radius: 10px;
+    border: 1px solid var(--border);
+  }
+  .chance-num { font-size: 1.5rem; font-weight: 800; letter-spacing: -0.8px; line-height: 1; }
+  .chance-label { font-size: 0.72rem; color: var(--muted); }
+  .chance-label b { font-weight: 700; }
+
+  /* Parabolic strip */
+  .parabolic-strip {
+    margin: -16px -16px 12px; padding: 8px 16px;
+    background: rgba(239,68,68,0.12); color: #fca5a5;
+    font-size: 0.72rem; font-weight: 600;
+    border-bottom: 1px solid rgba(239,68,68,0.25);
+  }
+
+  /* Tags used in journal */
   .tag { font-size: 0.68rem; padding: 3px 9px; border-radius: 6px; font-weight: 600; letter-spacing: 0.2px; }
   .tag.momentum { background: rgba(245,158,11,0.12); color: #fbbf24; }
   .tag.pullback { background: rgba(59,130,246,0.12); color: #60a5fa; }
@@ -88,32 +131,7 @@
   .tag.near-target { background: rgba(34,197,94,0.15); color: #4ade80; }
   .tag.editing { background: rgba(59,130,246,0.15); color: #60a5fa; }
   .tag.stable { background: rgba(138,148,166,0.15); color: #8a94a6; }
-  .tag.momentum-strong {
-    background: rgba(249,115,22,0.18); color: #fb923c;
-    text-shadow: 0 0 8px rgba(251,146,60,0.35);
-  }
-  .tag.vol-low { background: rgba(34,197,94,0.12); color: #4ade80; }
-  .tag.vol-med { background: rgba(245,158,11,0.12); color: #fbbf24; }
-  .tag.vol-high { background: rgba(239,68,68,0.12); color: #f87171; }
-  .tag.parabolic {
-    background: rgba(239,68,68,0.2); color: #fca5a5;
-    border: 1px solid rgba(239,68,68,0.5);
-  }
-  .trend-badge {
-    display: inline-flex; align-items: center; gap: 3px;
-    font-size: 0.66rem; padding: 3px 8px; border-radius: 6px;
-    font-weight: 700; letter-spacing: 0.2px;
-  }
-  .trend-badge.up { background: rgba(34,197,94,0.14); color: #4ade80; }
-  .trend-badge.down { background: rgba(239,68,68,0.14); color: #f87171; }
-  .trend-badge.neutral { background: rgba(138,148,166,0.14); color: #8a94a6; }
-  .vol-check { color: var(--green); font-weight: 800; font-size: 0.8rem; margin-left: 3px; }
-  .conf-dots { display: inline-flex; gap: 3px; margin-left: 6px; vertical-align: middle; }
-  .conf-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--surface-2); }
-  .conf-dot.on { background: var(--green); box-shadow: 0 0 4px rgba(34,197,94,0.6); }
-  .conf-dot.on.mom { background: #fb923c; box-shadow: 0 0 4px rgba(251,146,60,0.6); }
-  .conf-dot.on.trend { background: #60a5fa; box-shadow: 0 0 4px rgba(96,165,250,0.6); }
-  .conf-dot.on.ev { background: var(--green); box-shadow: 0 0 4px rgba(34,197,94,0.6); }
+
   .score-row { display: flex; align-items: center; gap: 10px; }
   .score-row .num { font-size: 0.72rem; color: var(--muted); min-width: 32px; font-weight: 600; }
   .score-bar { flex: 1; height: 5px; background: var(--bg); border-radius: 3px; overflow: hidden; }
@@ -126,13 +144,13 @@
     color: var(--muted); line-height: 1.55; margin-bottom: 14px;
   }
   .banner b { color: var(--text); }
+
   /* Market regime banner */
   .market-banner {
     display: flex; align-items: center; gap: 12px;
     padding: 12px 14px; border-radius: var(--radius-sm);
     margin-bottom: 14px; font-size: 0.82rem; line-height: 1.5;
-    border: 1px solid var(--border);
-    background: var(--surface);
+    border: 1px solid var(--border); background: var(--surface);
   }
   .market-banner .icon { font-size: 1.5rem; line-height: 1; flex-shrink: 0; }
   .market-banner .body { flex: 1; min-width: 0; }
@@ -143,6 +161,7 @@
   .market-banner.bear { border-color: rgba(239,68,68,0.35); background: rgba(239,68,68,0.06); }
   .market-banner.bear .title { color: #f87171; }
   .market-banner.neutral .title { color: #fbbf24; }
+
   .section-title { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px; color: var(--dim); margin: 22px 0 10px; }
   .section-header { display: flex; justify-content: space-between; align-items: center; margin: 22px 0 10px; gap: 10px; }
   .section-header .section-title { margin: 0; }
@@ -215,7 +234,6 @@
   .insight .bad { color: var(--red); font-weight: 600; }
   .insight .hl { color: #60a5fa; font-weight: 600; }
   .insight .warn { color: #fbbf24; font-weight: 600; }
-  /* Portfolio health panel */
   .portfolio-panel { background: var(--surface); border: 1px solid var(--border-soft); border-radius: var(--radius); padding: 16px; margin-bottom: 14px; }
   .portfolio-panel .title { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.8px; color: var(--dim); font-weight: 700; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center; }
   .portfolio-row { display: flex; justify-content: space-between; padding: 8px 0; font-size: 0.82rem; border-bottom: 1px solid var(--border-soft); }
@@ -535,7 +553,6 @@ let allCoins = [];
 let currentView = 'scan';
 let currentFilter = 'winners';
 let storageWarned = false;
-let marketRegimeCache = null;
 
 const $ = id => document.getElementById(id);
 
@@ -595,15 +612,12 @@ function ch30(c) { return c.price_change_percentage_30d_in_currency ?? c.price_c
 function volRatio(c) { return c.market_cap ? c.total_volume / c.market_cap : 0; }
 
 /* ============================================================
-   MARKET REGIME — Book Ch. 10 (Speculation of Crowds)
-   If BTC is dumping, most alt signals will fail. Know first.
+   MARKET REGIME — Book Ch. 10
 ============================================================ */
 function computeMarketRegime() {
   if (!allCoins.length) return null;
   const btc = allCoins.find(c => c.symbol.toLowerCase() === 'btc');
   if (!btc) return null;
-
-  const btc24 = ch24(btc);
   const btc7 = ch7(btc);
   const top30 = allCoins.slice(0, 30);
   const upCount = top30.filter(c => ch24(c) > 0).length;
@@ -611,26 +625,22 @@ function computeMarketRegime() {
 
   let state, title, desc, cls, icon;
   if (btc7 > 5 && breadth >= 60) {
-    state = 'bull';
-    icon = '🌞';
+    state = 'bull'; icon = '🌞';
     title = 'Bullish market';
     desc = `BTC +${btc7.toFixed(1)}% on the week · ${breadth.toFixed(0)}% of top 30 up. Trend signals more reliable.`;
     cls = 'bull';
   } else if (btc7 < -5 || breadth < 30) {
-    state = 'bear';
-    icon = '🌧️';
+    state = 'bear'; icon = '🌧️';
     title = 'Bearish market';
     desc = `BTC ${btc7.toFixed(1)}% this week · only ${breadth.toFixed(0)}% of top 30 up. Signals often fail here. Consider waiting.`;
     cls = 'bear';
   } else {
-    state = 'neutral';
-    icon = '⛅';
+    state = 'neutral'; icon = '⛅';
     title = 'Neutral / choppy';
     desc = `BTC ${btc7 >= 0 ? '+' : ''}${btc7.toFixed(1)}% this week · ${breadth.toFixed(0)}% of top 30 up. Quality setups only.`;
     cls = 'neutral';
   }
-
-  return { state, cls, icon, title, desc, btc24, btc7, breadth };
+  return { state, cls, icon, title, desc, btc7, breadth };
 }
 
 function renderMarketBanner() {
@@ -638,7 +648,6 @@ function renderMarketBanner() {
   if (!slot) return;
   const r = computeMarketRegime();
   if (!r) { slot.innerHTML = ''; return; }
-
   slot.innerHTML = `
     <div class="market-banner ${r.cls}">
       <div class="icon">${r.icon}</div>
@@ -650,8 +659,7 @@ function renderMarketBanner() {
 }
 
 /* ============================================================
-   TECHNICAL INDICATORS (Binance klines)
-   Adds volatility per coin from the same candles.
+   TECHNICAL INDICATORS
 ============================================================ */
 const indicatorsCache = {};
 const indicatorInFlight = new Set();
@@ -758,7 +766,6 @@ async function computeIndicators(coin) {
       else if (lastVol < avgVol20 * 0.7) volume = 'low';
     }
 
-    // --- Volatility (Book Ch. 7 & 9): stddev of hourly returns, scaled to daily
     const hourlyReturns = [];
     for (let i = 1; i < closes.length; i++) {
       hourlyReturns.push((closes[i] - closes[i - 1]) / closes[i - 1]);
@@ -787,11 +794,9 @@ async function enrichCoins(coins) {
     return now - cached.ts > STALE;
   });
   if (!todo.length) return;
-
   todo.forEach(c => indicatorInFlight.add(c.id));
   const CONCURRENCY = 6;
   let cursor = 0;
-
   async function worker() {
     while (cursor < todo.length) {
       const coin = todo[cursor++];
@@ -808,7 +813,7 @@ async function enrichCoins(coins) {
 }
 
 /* ============================================================
-   STABLECOIN + SETUP DETECTION
+   DETECTION
 ============================================================ */
 function isStablecoin(c) {
   const p = c.current_price ?? 0;
@@ -823,12 +828,6 @@ function isMomentumBurst(c) {
 function isPullback(c) {
   return ch7(c) >= 12 && ch24(c) <= -2 && ch24(c) >= -5.5 && ch30(c) > -10;
 }
-
-/* ============================================================
-   PARABOLIC / BUBBLE DETECTION — Book Ch. 10
-   A coin up 40%+ in 7 days, or 20%+ in 24h, is a blow-off top.
-   These are the setups that trap retail. Flag them.
-============================================================ */
 function isParabolic(c) {
   const a = ch24(c);
   const w = ch7(c);
@@ -840,7 +839,7 @@ function isParabolic(c) {
 }
 
 /* ============================================================
-   SCORE (Confluence-based, unchanged weights)
+   SCORING
 ============================================================ */
 function qualityScore35(c) {
   const r1 = ch24(c), r7 = ch7(c) / 7, r30 = ch30(c) / 30;
@@ -857,34 +856,26 @@ function qualityScore35(c) {
 function confluenceScore(c) {
   const ind = indicatorsCache[c.id];
   let trendPts = 12, momentumPts = 12, volumePts = 7;
-
   if (ind) {
     if (ind.trend === 'up') trendPts = 25;
     else if (ind.trend === 'up-partial') trendPts = 18;
     else if (ind.trend === 'down') trendPts = 0;
     else if (ind.trend === 'down-partial') trendPts = 5;
     else trendPts = 12;
-
     if (ind.momentum === 'strong') momentumPts = 25;
     else if (ind.momentum === 'mild') momentumPts = 16;
     else if (ind.momentum === 'weak') momentumPts = 4;
     else momentumPts = 12;
-
     if (ind.volume === 'high') volumePts = 15;
     else if (ind.volume === 'low') volumePts = 3;
     else volumePts = 7;
   }
-
   const base = qualityScore35(c);
   let total = trendPts + momentumPts + volumePts + base;
-
-  // Book Ch. 10: parabolic spikes are often traps, penalise heavily
   if (isParabolic(c)) total *= 0.5;
-
   return Math.max(0, Math.min(100, Math.round(total)));
 }
 function winnerScore(c) { return confluenceScore(c); }
-
 function confluenceCount(c) {
   const ind = indicatorsCache[c.id];
   if (!ind) return 0;
@@ -901,10 +892,6 @@ function scoreColor(s) {
   if (s >= 35) return '#f97316';
   return 'var(--red)';
 }
-
-/* ============================================================
-   WIN CHANCE (logistic model + parabolic penalty)
-============================================================ */
 function estimateWinChance(c) {
   const isMom = isMomentumBurst(c);
   const isPull = isPullback(c);
@@ -912,25 +899,18 @@ function estimateWinChance(c) {
   if (isPull) baseP = 0.46;
   else if (isMom) baseP = 0.28;
   let logOdds = Math.log(baseP / (1 - baseP));
-
   logOdds += ((winnerScore(c) - 50) / 50) * 0.8;
-
   const v = volRatio(c);
   logOdds += Math.max(-0.6, Math.min(0.6, (v - 0.05) * 10));
-
   const a = ch24(c), w = ch7(c), m = ch30(c);
   if (a > 0 && w > 0) logOdds += 0.3;
   if (w > 0 && m > 0) logOdds += 0.3;
   if (a > 0 && m > 0) logOdds += 0.2;
   if (Math.abs(a) > 6) logOdds -= 0.4;
-
-  // Book Ch. 10: extended moves reverse
   if (isParabolic(c)) logOdds -= 1.0;
-
   const rank = c.market_cap_rank ?? 500;
   if (rank <= 20) logOdds += 0.2;
   else if (rank >= 100) logOdds -= 0.3;
-
   const p = 1 / (1 + Math.exp(-logOdds));
   return Math.max(5, Math.min(65, Math.round(p * 100)));
 }
@@ -968,7 +948,6 @@ function nearThresholdFraction() {
   const pct = isNaN(raw) ? 0.5 : Math.max(0, Math.min(5, raw));
   return pct / 100;
 }
-
 function loadAlertLog() { return safeGet(ALERT_LOG_KEY, []); }
 function saveAlertLog(l) { safeSet(ALERT_LOG_KEY, l.slice(0, 100)); }
 function logAlert(type, title, message) {
@@ -1077,7 +1056,7 @@ function findCoinLive(symbol, coinId) {
 }
 
 /* ============================================================
-   COIN CARD
+   COIN CARD — CLEAN VERSION
 ============================================================ */
 function coinCardHTML(c, highlight) {
   const a = ch24(c), w = ch7(c), m = ch30(c);
@@ -1088,47 +1067,59 @@ function coinCardHTML(c, highlight) {
   const ind = indicatorsCache[c.id];
   const parabolic = isParabolic(c);
 
-  const tags = [];
-  if (isMomentumBurst(c)) tags.push('<span class="tag momentum">Momentum</span>');
-  if (isPullback(c)) tags.push('<span class="tag pullback">Pullback</span>');
-  if (ind && ind.momentum === 'strong') tags.push('<span class="tag momentum-strong">⚡ Strong</span>');
-  if (parabolic) tags.push('<span class="tag parabolic">⚠️ Parabolic</span>');
+  // --- ONE setup badge ---
+  let setupBadge = '';
+  const isMom = isMomentumBurst(c);
+  const isPull = isPullback(c);
+  const strongMom = ind && ind.momentum === 'strong';
 
-  // Volatility badge
-  if (ind && ind.volatility !== 'unknown') {
-    const vClass = ind.volatility === 'low' ? 'vol-low' : ind.volatility === 'high' ? 'vol-high' : 'vol-med';
-    const vLabel = ind.volatility === 'low' ? '📉 Low vol' : ind.volatility === 'high' ? '🌊 High vol' : '〰️ Med vol';
-    tags.push(`<span class="tag ${vClass}">${vLabel}</span>`);
+  if (isMom && strongMom) {
+    setupBadge = '<span class="sig-badge momentum-strong">⚡ Strong Momentum</span>';
+  } else if (isMom) {
+    setupBadge = '<span class="sig-badge momentum">🚀 Momentum</span>';
+  } else if (isPull) {
+    setupBadge = '<span class="sig-badge pullback">📉 Pullback</span>';
   }
 
+  // --- ONE trend pill ---
   let trendBadge = '';
   if (ind) {
-    if (ind.trend === 'up') trendBadge = '<span class="trend-badge up">↗ Trend UP</span>';
-    else if (ind.trend === 'up-partial') trendBadge = '<span class="trend-badge up">↗ Above 50MA</span>';
-    else if (ind.trend === 'down') trendBadge = '<span class="trend-badge down">↘ Trend DOWN</span>';
-    else if (ind.trend === 'down-partial') trendBadge = '<span class="trend-badge down">↘ Below 50MA</span>';
-    else trendBadge = '<span class="trend-badge neutral">→ Neutral</span>';
+    if (ind.trend === 'up' || ind.trend === 'up-partial') {
+      trendBadge = '<span class="trend-pill up">↗ UP</span>';
+    } else if (ind.trend === 'down' || ind.trend === 'down-partial') {
+      trendBadge = '<span class="trend-pill down">↘ DOWN</span>';
+    }
   }
 
-  const volCheck = ind && ind.volume === 'high' ? '<span class="vol-check">✓</span>' : '';
-  const confCount = confluenceCount(c);
-  const confDots = ind ? `
-    <span class="conf-dots" title="${confCount} of 4">
-      <span class="conf-dot trend ${ind.trend === 'up' || ind.trend === 'up-partial' ? 'on' : ''}"></span>
-      <span class="conf-dot mom ${ind.momentum === 'strong' ? 'on' : ''}"></span>
-      <span class="conf-dot vol ${ind.volume === 'high' ? 'on' : ''}"></span>
-      <span class="conf-dot ev ${ev > 0 ? 'on' : ''}"></span>
-    </span>` : '';
+  // --- Volatility as tiny icon ---
+  const volIcon = ind && ind.volatility === 'low' ? '📉'
+                : ind && ind.volatility === 'high' ? '🌊'
+                : ind && ind.volatility === 'medium' ? '〰️'
+                : '';
 
+  // --- Volume coloring ---
+  const volColor = ind && ind.volume === 'high' ? 'var(--green)'
+                 : ind && ind.volume === 'low' ? 'var(--red)'
+                 : 'var(--text)';
+
+  // --- Parabolic warning strip ---
+  const parabolicStrip = parabolic ? `
+    <div class="parabolic-strip">
+      ⚠️ Up ${Math.max(ch24(c), ch7(c)).toFixed(0)}% — book Ch.10 warns these reverse hard
+    </div>` : '';
+
+  // --- Chance block (only on highlighted tabs) ---
   const chanceBlock = highlight ? `
-    <div style="margin:12px 0 10px;padding:12px;background:var(--bg);border-radius:10px;text-align:center;border:1px solid ${chanceColor(chance)}33">
-      <div style="font-size:0.68rem;color:var(--muted);text-transform:uppercase;letter-spacing:0.7px;font-weight:700">Estimated chance to profit</div>
-      <div style="font-size:2rem;font-weight:800;color:${chanceColor(chance)};letter-spacing:-1px;line-height:1.1;margin-top:4px">${chance}%</div>
-      <div style="font-size:0.72rem;color:var(--muted);margin-top:4px">Expected value per $1 risked: <b style="color:${ev >= 0 ? 'var(--green)' : 'var(--red)'}">${ev >= 0 ? '+' : ''}$${ev.toFixed(2)}</b></div>
+    <div class="chance-block" style="border-color:${chanceColor(chance)}33">
+      <div class="chance-num" style="color:${chanceColor(chance)}">${chance}%</div>
+      <div class="chance-label">win chance · EV <b style="color:${ev >= 0 ? 'var(--green)' : 'var(--red)'}">${ev >= 0 ? '+' : ''}$${ev.toFixed(2)}</b></div>
     </div>` : '';
 
   return `
-    <div class="coin-card ${highlight ? 'highlight' : ''} ${parabolic ? 'parabolic' : ''}" data-symbol="${esc(c.symbol)}" data-id="${esc(c.id)}" style="cursor:pointer">
+    <div class="coin-card ${highlight ? 'highlight' : ''} ${parabolic ? 'parabolic' : ''}"
+         data-symbol="${esc(c.symbol)}" data-id="${esc(c.id)}"
+         style="cursor:pointer">
+      ${parabolicStrip}
       <div class="top">
         <div>
           <div class="name">${esc(c.name)}</div>
@@ -1139,13 +1130,20 @@ function coinCardHTML(c, highlight) {
           <div class="change ${cls}">${a >= 0 ? '+' : ''}${a.toFixed(2)}%</div>
         </div>
       </div>
-      ${tags.length || trendBadge ? `<div class="tags">${tags.join('')}${trendBadge}${confDots}</div>` : ''}
+
+      ${(setupBadge || trendBadge) ? `
+        <div class="sig-row">
+          ${setupBadge}${trendBadge}
+        </div>` : ''}
+
       ${chanceBlock}
+
       <div class="metrics">
         <div>7d <span class="${w >= 0 ? 'up' : 'down'}">${w >= 0 ? '+' : ''}${w.toFixed(1)}%</span></div>
         <div>30d <span class="${m >= 0 ? 'up' : 'down'}">${m >= 0 ? '+' : ''}${m.toFixed(0)}%</span></div>
-        <div>Vol <span>${money(c.total_volume)}</span>${volCheck}</div>
+        <div>Vol <span style="color:${volColor}">${money(c.total_volume)}</span>${volIcon ? ' ' + volIcon : ''}</div>
       </div>
+
       <div class="score-row">
         <div class="num" style="color:${scoreColor(s)}">${s}</div>
         <div class="score-bar"><div class="score-fill" style="width:${s}%;background:${scoreColor(s)}"></div></div>
@@ -1176,7 +1174,7 @@ function renderCoinList() {
   if (currentFilter === 'winners') {
     explainer = `
       <div class="banner" style="border-left-color:var(--amber);margin-bottom:16px">
-        <b>What the % means.</b> An estimate from historical setup rates, adjusted by this coin's quality score. <b>Not a guarantee.</b> ⚠️ <b>Parabolic</b> tags mean the coin is up 40%+ in 7d — book Ch. 10 warns these reverse hard. Green EV = profitable long-term.
+        <b>What the % means.</b> An estimate from historical setup rates. <b>Not a guarantee.</b> ⚠️ <b>Parabolic</b> tags mean the coin is up 40%+ in 7d — book Ch.10 warns these reverse hard.
       </div>`;
   } else if (currentFilter === 'confluence') {
     explainer = `
@@ -1360,7 +1358,6 @@ function autoFillTrade() {
 
   const entry = c.current_price;
   const ind = indicatorsCache[c.id];
-  // Adjust stop % based on volatility (Book Ch. 7: wider stops for wilder assets)
   let stopPct = setup === 'Momentum' ? 0.02 : 0.03;
   if (ind && ind.volatility === 'high') stopPct *= 1.5;
   else if (ind && ind.volatility === 'low') stopPct *= 0.8;
@@ -1540,23 +1537,20 @@ function breakdownBy(trades, key) {
   });
   return g;
 }
-
-/* Drawdown + streak tracking (Book Ch. 6) */
 function computeDrawdown(trades) {
   const closed = trades
     .filter(t => t.status === 'win' || t.status === 'loss')
     .slice()
     .sort((a, b) => new Date(a.closeDate || a.date) - new Date(b.closeDate || b.date));
-  if (!closed.length) return { maxDD: 0, peak: 0, current: 0 };
+  if (!closed.length) return { maxDD: 0, peak: 0, current: 0, maxLossStreak: 0, maxWinStreak: 0 };
 
-  let equity = 0, peak = 0, maxDD = 0, streak = 0, maxLossStreak = 0, maxWinStreak = 0;
-  let currentStreak = 0;
+  let equity = 0, peak = 0, maxDD = 0;
+  let currentStreak = 0, maxLossStreak = 0, maxWinStreak = 0;
   closed.forEach(t => {
     equity += t.pnl || 0;
     if (equity > peak) peak = equity;
     const dd = peak - equity;
     if (dd > maxDD) maxDD = dd;
-
     if (t.status === 'loss') { if (currentStreak > 0) currentStreak = 0; currentStreak--; }
     else { if (currentStreak < 0) currentStreak = 0; currentStreak++; }
     if (currentStreak < maxLossStreak) maxLossStreak = currentStreak;
@@ -1564,72 +1558,56 @@ function computeDrawdown(trades) {
   });
   return { maxDD, peak, current: currentStreak, maxLossStreak: Math.abs(maxLossStreak), maxWinStreak };
 }
-
-/* Calibration: compare actual win rate to estimated (Book Ch. 12) */
 function computeCalibration(trades) {
   const closed = trades.filter(t => t.status === 'win' || t.status === 'loss');
   if (closed.length < 5) return null;
-
   let sumEst = 0, count = 0;
   closed.forEach(t => {
     const live = findCoinLive(t.coin, t.coinId);
     if (!live) return;
-    const est = estimateWinChance(live);
-    sumEst += est;
+    sumEst += estimateWinChance(live);
     count++;
   });
   if (!count) return null;
   const avgEst = sumEst / count;
   const stats = computeStats(trades);
-  const actual = stats.winRate;
-  return { avgEst, actual, delta: actual - avgEst, samples: closed.length };
+  return { avgEst, actual: stats.winRate, delta: stats.winRate - avgEst, samples: closed.length };
 }
-
-/* Portfolio health (Book Ch. 6: risk management) */
 function analyzePortfolio(trades) {
   const settings = loadSettings();
   const open = trades.filter(t => t.status === 'open');
   const totalDeployed = open.reduce((s, t) => s + (t.size || 0), 0);
   const capitalPct = settings.balance > 0 ? (totalDeployed / settings.balance) * 100 : 0;
 
-  // Capital at risk if all stopped out
   let totalRisk = 0;
   open.forEach(t => {
-    const units = t.entry > 0 && t.size > 0 ? t.size / t.entry : 0;
-    const loss = (t.entry - t.stop) * units;
+    const u = t.entry > 0 && t.size > 0 ? t.size / t.entry : 0;
+    const loss = (t.entry - t.stop) * u;
     if (loss > 0) totalRisk += loss;
   });
   const riskPct = settings.balance > 0 ? (totalRisk / settings.balance) * 100 : 0;
 
-  // Concentration
-  const bySetup = {};
-  const byCoin = {};
+  const bySetup = {}; const byCoin = {};
   open.forEach(t => {
     bySetup[t.setup] = (bySetup[t.setup] || 0) + 1;
     byCoin[t.coin] = (byCoin[t.coin] || 0) + 1;
   });
 
   const warnings = [];
-  if (capitalPct > 50) warnings.push({ level: 'danger', msg: `⚠️ ${capitalPct.toFixed(0)}% of your account is deployed. Book Ch.6: keep this under 50% so a bad day doesn't wipe you out.` });
-  else if (capitalPct > 30) warnings.push({ level: 'warn', msg: `${capitalPct.toFixed(0)}% deployed. Consider keeping more dry powder.` });
+  if (capitalPct > 50) warnings.push({ level: 'danger', msg: `⚠️ ${capitalPct.toFixed(0)}% of your account is deployed. Book Ch.6: keep under 50%.` });
+  else if (capitalPct > 30) warnings.push({ level: 'warn', msg: `${capitalPct.toFixed(0)}% deployed. Consider more dry powder.` });
+  if (riskPct > 8) warnings.push({ level: 'danger', msg: `⚠️ Total risk if all stop out: ${riskPct.toFixed(1)}%. Book Ch.6 limit: 6%.` });
+  else if (riskPct > 5) warnings.push({ level: 'warn', msg: `Total risk if all stop: ${riskPct.toFixed(1)}%. Getting high.` });
 
-  if (riskPct > 8) warnings.push({ level: 'danger', msg: `⚠️ Total risk if everything stops out: ${riskPct.toFixed(1)}% of account. Book Ch.6 limit: 6%.` });
-  else if (riskPct > 5) warnings.push({ level: 'warn', msg: `Total risk if everything stops: ${riskPct.toFixed(1)}%. Getting high.` });
-
-  const dominantSetup = Object.entries(bySetup).sort((a,b) => b[1] - a[1])[0];
-  if (dominantSetup && dominantSetup[1] >= 3) {
-    warnings.push({ level: 'warn', msg: `All ${dominantSetup[1]} trades are "${dominantSetup[0]}" setups. If that setup fails, they all fail together.` });
-  }
+  const dominant = Object.entries(bySetup).sort((a,b) => b[1] - a[1])[0];
+  if (dominant && dominant[1] >= 3) warnings.push({ level: 'warn', msg: `All ${dominant[1]} trades are "${dominant[0]}". If that setup fails, they all fail together.` });
 
   const dupCoin = Object.entries(byCoin).find(([_, n]) => n >= 2);
-  if (dupCoin) {
-    warnings.push({ level: 'danger', msg: `You have ${dupCoin[1]} open trades on ${dupCoin[0]}. That's one bet, not two.` });
-  }
+  if (dupCoin) warnings.push({ level: 'danger', msg: `You have ${dupCoin[1]} open trades on ${dupCoin[0]}. That's one bet, not two.` });
 
-  // Market regime warning
   const regime = computeMarketRegime();
   if (regime && regime.state === 'bear' && open.length > 0) {
-    warnings.push({ level: 'warn', msg: `Market is bearish. Book Ch.10: signals fail more often in these conditions.` });
+    warnings.push({ level: 'warn', msg: `Market is bearish. Book Ch.10: signals fail more often.` });
   }
 
   return { open, totalDeployed, capitalPct, totalRisk, riskPct, bySetup, byCoin, warnings };
@@ -1637,14 +1615,11 @@ function analyzePortfolio(trades) {
 
 function generateInsight(stats, setupG, coinG, portfolio, drawdown, calibration) {
   const lines = [];
-
   if (stats.closed.length === 0 && portfolio.open.length === 0) {
     return `<div class="insight"><div class="title">🧠 Learning mode</div>Log at least <b>20 closed trades</b> before trusting patterns. Right now: <b>0</b>.</div>`;
   }
+  lines.push(`Closed: <b>${stats.closed.length}</b> ${stats.closed.length < 20 ? '<span style="color:var(--muted)">— need 20 for reliable data</span>' : '<span class="good">— good sample</span>'}`);
 
-  lines.push(`Closed: <b>${stats.closed.length}</b> ${stats.closed.length < 20 ? '<span style="color:var(--muted)">— need 20 for reliable data (book Ch.12)</span>' : '<span class="good">— good sample size</span>'}`);
-
-  // Setup comparison
   const m = setupG['Momentum'], p = setupG['Pullback'];
   const wr = g => g ? (g.wins / (g.wins + g.losses) * 100) : 0;
   if (m && p) {
@@ -1654,28 +1629,23 @@ function generateInsight(stats, setupG, coinG, portfolio, drawdown, calibration)
       lines.push(`<span class="hl">Your ${better} trades work better.</span> Momentum ${mwr.toFixed(0)}% · Pullback ${pwr.toFixed(0)}%`);
     }
   }
-
   if (stats.avgLoss !== 0) {
-    if (stats.rrRatio >= 2) lines.push(`R:R <span class="good">${stats.rrRatio.toFixed(2)}:1 — profitable even with low win rate</span>`);
+    if (stats.rrRatio >= 2) lines.push(`R:R <span class="good">${stats.rrRatio.toFixed(2)}:1 — profitable</span>`);
     else if (stats.rrRatio < 1) lines.push(`<span class="bad">Avg loss > avg win.</span> Tighten stops or aim higher.`);
   }
-
-  // Expectancy
   if (stats.expectancy > 0) lines.push(`Expectancy <span class="good">+$${stats.expectancy.toFixed(2)}/trade</span>`);
   else if (stats.expectancy < 0) lines.push(`Expectancy <span class="bad">-$${Math.abs(stats.expectancy).toFixed(2)}/trade</span>`);
 
-  // Calibration (Book Ch. 12: check your model)
   if (calibration && calibration.samples >= 5) {
     const d = calibration.delta;
-    if (d >= 8) lines.push(`📊 <span class="good">Calibration: you're beating your own estimates by ${d.toFixed(0)}%</span> — your picks are stronger than the model thinks.`);
-    else if (d <= -8) lines.push(`📊 <span class="bad">Calibration: actual win rate is ${Math.abs(d).toFixed(0)}% below estimate</span> — be more selective.`);
-    else lines.push(`📊 Calibration: actual matches estimate within ${Math.abs(d).toFixed(0)}% — model is honest.`);
+    if (d >= 8) lines.push(`📊 <span class="good">Calibration: beating your estimates by ${d.toFixed(0)}%</span> — your picks are stronger than the model thinks.`);
+    else if (d <= -8) lines.push(`📊 <span class="bad">Calibration: actual ${Math.abs(d).toFixed(0)}% below estimate</span> — be more selective.`);
+    else lines.push(`📊 Calibration: model matches reality within ${Math.abs(d).toFixed(0)}%.`);
   }
 
-  // Streaks (Book Ch. 6)
-  if (drawdown.maxLossStreak >= 3) lines.push(`⚠️ Longest losing streak so far: <b>${drawdown.maxLossStreak}</b>. This is normal. Don't panic-increase size.`);
-  if (drawdown.maxWinStreak >= 4) lines.push(`🔥 Longest winning streak: <b>${drawdown.maxWinStreak}</b>. Book Ch.6: consider rebalancing after big runs.`);
-  if (drawdown.current <= -3) lines.push(`<span class="warn">You're on a ${Math.abs(drawdown.current)}-loss streak right now.</span> Consider a break.`);
+  if (drawdown.maxLossStreak >= 3) lines.push(`⚠️ Longest losing streak: <b>${drawdown.maxLossStreak}</b>. Normal. Don't panic-size.`);
+  if (drawdown.maxWinStreak >= 4) lines.push(`🔥 Longest winning streak: <b>${drawdown.maxWinStreak}</b>. Consider rebalancing.`);
+  if (drawdown.current <= -3) lines.push(`<span class="warn">You're on a ${Math.abs(drawdown.current)}-loss streak.</span> Consider a break.`);
   if (drawdown.current >= 3) lines.push(`<span class="good">You're on a ${drawdown.current}-win streak.</span>`);
 
   return `<div class="insight"><div class="title">🧠 Insight</div>${lines.join('<br>')}</div>`;
@@ -1709,9 +1679,9 @@ function renderPortfolioPanel(trades) {
       html += `<div class="portfolio-warn ${w.level === 'danger' ? 'danger' : ''}">${w.msg}</div>`;
     });
   } else if (p.open.length > 0) {
-    html += `<div class="portfolio-warn" style="background:rgba(34,197,94,0.06);border-left-color:var(--green)">✅ Portfolio looks healthy. Keep risk per trade at 1–2%.</div>`;
+    html += `<div class="portfolio-warn" style="background:rgba(34,197,94,0.06);border-left-color:var(--green)">✅ Portfolio looks healthy.</div>`;
   } else {
-    html += `<div class="portfolio-warn" style="background:transparent;border-left-color:var(--border-soft);color:var(--muted)">No open trades. When you log one, risk metrics appear here.</div>`;
+    html += `<div class="portfolio-warn" style="background:transparent;border-left-color:var(--border-soft);color:var(--muted)">No open trades. Risk metrics appear when you log one.</div>`;
   }
 
   html += `</div>`;
@@ -1764,10 +1734,8 @@ function renderJournal() {
 
   const closedCount = trades.filter(t => t.status === 'win' || t.status === 'loss').length;
   const clearBtn = $('clearClosedBtn');
-  if (closedCount > 0) {
-    clearBtn.classList.remove('hidden');
-    clearBtn.textContent = `🗑️ Clear ${closedCount} closed`;
-  } else clearBtn.classList.add('hidden');
+  if (closedCount > 0) { clearBtn.classList.remove('hidden'); clearBtn.textContent = `🗑️ Clear ${closedCount} closed`; }
+  else clearBtn.classList.add('hidden');
 
   const bulkSlot = $('bulkConfirmSlot');
   if (bulkConfirmOpen && closedCount > 0) {
@@ -2114,19 +2082,19 @@ function renderDetailStats(coin) {
 
   const tags = [];
   if (stable) tags.push('<span class="tag stable">Stablecoin</span>');
-  if (isMom) tags.push('<span class="tag momentum">Momentum</span>');
-  if (isPull) tags.push('<span class="tag pullback">Pullback</span>');
-  if (ind && ind.momentum === 'strong') tags.push('<span class="tag momentum-strong">⚡ Strong</span>');
-  if (parabolic) tags.push('<span class="tag parabolic">⚠️ Parabolic</span>');
+  if (isMom && ind && ind.momentum === 'strong') tags.push('<span class="sig-badge momentum-strong">⚡ Strong Momentum</span>');
+  else if (isMom) tags.push('<span class="sig-badge momentum">🚀 Momentum</span>');
+  if (isPull) tags.push('<span class="sig-badge pullback">📉 Pullback</span>');
+  if (parabolic) tags.push('<span class="sig-badge" style="background:rgba(239,68,68,0.2);color:#fca5a5;border:1px solid rgba(239,68,68,0.4)">⚠️ Parabolic</span>');
   if (!stable && !isMom && !isPull) tags.push('<span class="tag open">No setup</span>');
 
   let trendBadge = '';
   if (ind) {
-    if (ind.trend === 'up') trendBadge = '<span class="trend-badge up">↗ Trend UP</span>';
-    else if (ind.trend === 'up-partial') trendBadge = '<span class="trend-badge up">↗ Above 50MA</span>';
-    else if (ind.trend === 'down') trendBadge = '<span class="trend-badge down">↘ Trend DOWN</span>';
-    else if (ind.trend === 'down-partial') trendBadge = '<span class="trend-badge down">↘ Below 50MA</span>';
-    else trendBadge = '<span class="trend-badge neutral">→ Neutral</span>';
+    if (ind.trend === 'up') trendBadge = '<span class="trend-pill up">↗ Trend UP</span>';
+    else if (ind.trend === 'up-partial') trendBadge = '<span class="trend-pill up">↗ Above 50MA</span>';
+    else if (ind.trend === 'down') trendBadge = '<span class="trend-pill down">↘ Trend DOWN</span>';
+    else if (ind.trend === 'down-partial') trendBadge = '<span class="trend-pill down">↘ Below 50MA</span>';
+    else trendBadge = '<span class="trend-pill neutral">→ Neutral</span>';
   }
 
   const a = ch24(coin), w = ch7(coin), m = ch30(coin);
