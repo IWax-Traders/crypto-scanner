@@ -78,7 +78,6 @@
   .coin-card .metrics { display: flex; gap: 16px; font-size: 0.78rem; color: var(--muted); margin-bottom: 12px; flex-wrap: wrap; }
   .coin-card .metrics span { color: var(--text); font-weight: 600; }
 
-  /* Signal row */
   .sig-row {
     display: flex; gap: 8px; margin-bottom: 10px;
     align-items: center; flex-wrap: wrap;
@@ -118,7 +117,6 @@
     border-bottom: 1px solid rgba(239,68,68,0.25);
   }
 
-  /* Tags (journal) */
   .tag { font-size: 0.68rem; padding: 3px 9px; border-radius: 6px; font-weight: 600; letter-spacing: 0.2px; }
   .tag.momentum { background: rgba(245,158,11,0.12); color: #fbbf24; }
   .tag.pullback { background: rgba(59,130,246,0.12); color: #60a5fa; }
@@ -143,6 +141,84 @@
   }
   .banner b { color: var(--text); }
 
+  /* ============================================================
+     TODAY'S VERDICT CARD
+  ============================================================ */
+  .verdict-card {
+    border-radius: var(--radius);
+    margin-bottom: 14px;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    overflow: hidden;
+    transition: border-color 0.15s;
+  }
+  .verdict-card.green { border-color: rgba(34,197,94,0.45); background: rgba(34,197,94,0.06); }
+  .verdict-card.yellow { border-color: rgba(245,158,11,0.45); background: rgba(245,158,11,0.06); }
+  .verdict-card.red { border-color: rgba(239,68,68,0.5); background: rgba(239,68,68,0.07); }
+  .verdict-card.loading { opacity: 0.7; }
+
+  .verdict-head {
+    padding: 14px 16px;
+    display: flex; align-items: center; gap: 12px;
+    cursor: pointer;
+    user-select: none;
+  }
+  .verdict-icon {
+    font-size: 1.9rem; line-height: 1; flex-shrink: 0;
+  }
+  .verdict-body { flex: 1; min-width: 0; }
+  .verdict-title {
+    font-size: 1rem; font-weight: 800;
+    letter-spacing: -0.2px; margin-bottom: 2px;
+  }
+  .verdict-card.green .verdict-title { color: #4ade80; }
+  .verdict-card.yellow .verdict-title { color: #fbbf24; }
+  .verdict-card.red .verdict-title { color: #f87171; }
+  .verdict-card.loading .verdict-title { color: var(--muted); }
+  .verdict-sub {
+    font-size: 0.76rem; color: var(--muted); line-height: 1.45;
+  }
+  .verdict-chevron {
+    font-size: 0.85rem; color: var(--muted); flex-shrink: 0;
+    transition: transform 0.2s;
+  }
+  .verdict-card.expanded .verdict-chevron { transform: rotate(180deg); }
+
+  .verdict-reasons {
+    display: none;
+    padding: 0 16px 14px;
+    border-top: 1px solid rgba(255,255,255,0.05);
+  }
+  .verdict-card.expanded .verdict-reasons {
+    display: block;
+    padding-top: 12px;
+  }
+  .verdict-reason {
+    display: flex; align-items: flex-start; gap: 8px;
+    padding: 6px 0;
+    font-size: 0.78rem;
+    line-height: 1.5;
+    color: #c8d0dc;
+  }
+  .verdict-reason .r-icon {
+    flex-shrink: 0; font-size: 0.85rem; width: 16px;
+    text-align: center;
+  }
+  .verdict-reason.good .r-icon { color: var(--green); }
+  .verdict-reason.warn .r-icon { color: var(--amber); }
+  .verdict-reason.bad .r-icon { color: var(--red); }
+  .verdict-reason.info .r-icon { color: #60a5fa; }
+  .verdict-reason .r-text { flex: 1; min-width: 0; }
+  .verdict-reason .r-text b { color: var(--text); }
+
+  .verdict-note {
+    margin-top: 10px;
+    font-size: 0.68rem;
+    color: var(--dim);
+    font-style: italic;
+    text-align: center;
+  }
+
   /* Market regime */
   .market-banner {
     display: flex; align-items: center; gap: 12px;
@@ -160,7 +236,6 @@
   .market-banner.bear .title { color: #f87171; }
   .market-banner.neutral .title { color: #fbbf24; }
 
-  /* Timeframe toggle */
   .tf-row {
     display: flex; justify-content: space-between; align-items: center;
     margin-bottom: 10px;
@@ -314,7 +389,6 @@
   .legend .item { display: flex; align-items: center; gap: 5px; }
   .legend .swatch { width: 12px; height: 3px; border-radius: 2px; }
 
-  /* Modal overlay */
   .modal-overlay {
     position: fixed; inset: 0; background: rgba(0,0,0,0.75);
     display: flex; align-items: center; justify-content: center;
@@ -343,6 +417,7 @@
 <main>
 
   <section class="view active" id="view-scan">
+    <div id="verdictSlot"></div>
     <div id="marketBannerSlot"></div>
     <div class="tf-row">
       <span class="tf-label">Timeframe</span>
@@ -622,6 +697,7 @@ let currentView = 'scan';
 let currentFilter = 'winners';
 let storageWarned = false;
 let currentTimeframe = '1d';
+let verdictExpanded = false;
 
 const $ = id => document.getElementById(id);
 
@@ -753,6 +829,157 @@ function renderMarketBanner() {
         <div class="title">${r.title}</div>
         <div class="desc">${r.desc}</div>
       </div>
+    </div>`;
+}
+
+/* ============================================================
+   TODAY'S VERDICT
+   Reads market + your portfolio + your recent trades and tells
+   you plainly: should you trade today?
+============================================================ */
+function tradesLoggedToday() {
+  const trades = loadTrades();
+  const today = new Date().toDateString();
+  return trades.filter(t => new Date(t.date).toDateString() === today).length;
+}
+
+function computeVerdict() {
+  if (!allCoins.length) {
+    return {
+      level: 'loading',
+      icon: '⏳',
+      title: 'Loading market data…',
+      sub: 'Verdict will appear once prices load.',
+      reasons: []
+    };
+  }
+
+  const regime = computeMarketRegime();
+  const trades = loadTrades();
+  const open = trades.filter(t => t.status === 'open');
+  const settings = loadSettings();
+  const dd = computeDrawdown(trades);
+  const portfolio = analyzePortfolio(trades);
+
+  const reasons = [];
+  let stops = 0;
+  let cautions = 0;
+
+  // --- STOP 1: Cooldown active ---
+  if (isCooldownActive()) {
+    stops++;
+    reasons.push({ level: 'bad', text: '<b>You\'re on a cooldown.</b> Respect it. Book Ch.6: emotional trading after losses is how accounts die.' });
+  }
+
+  // --- STOP 2: Market is bearish ---
+  if (regime && regime.state === 'bear') {
+    stops++;
+    reasons.push({ level: 'bad', text: `<b>Market is bearish.</b> BTC ${regime.btc7.toFixed(1)}% on the week, only ${regime.breadth.toFixed(0)}% of top 30 green. Book Ch.10: signals fail in bad weather.` });
+  } else if (regime && regime.state === 'bull') {
+    reasons.push({ level: 'good', text: `<b>Market is bullish.</b> BTC +${regime.btc7.toFixed(1)}% this week, ${regime.breadth.toFixed(0)}% of top 30 green. Favourable conditions.` });
+  } else if (regime) {
+    reasons.push({ level: 'info', text: `<b>Market is neutral.</b> BTC ${regime.btc7 >= 0 ? '+' : ''}${regime.btc7.toFixed(1)}% this week. Quality setups only.` });
+  }
+
+  // --- STOP 3: Too many open trades ---
+  if (open.length >= 2) {
+    stops++;
+    reasons.push({ level: 'bad', text: `<b>You already have ${open.length} open trades.</b> Book Ch.6: don't stack positions. Close or manage what's open first.` });
+  } else if (open.length === 1) {
+    cautions++;
+    reasons.push({ level: 'warn', text: `<b>One open trade.</b> Fine, but only add another if it's a different setup and coin.` });
+  } else {
+    reasons.push({ level: 'good', text: '<b>No open trades.</b> Clean slate.' });
+  }
+
+  // --- STOP 4: Already traded today ---
+  const todayCount = tradesLoggedToday();
+  if (todayCount >= 1) {
+    stops++;
+    reasons.push({ level: 'bad', text: `<b>You've already logged ${todayCount} trade${todayCount !== 1 ? 's' : ''} today.</b> Book Ch.10: overtrading is a beginner's biggest leak.` });
+  } else {
+    reasons.push({ level: 'good', text: '<b>No trades logged today.</b> Fresh mind.' });
+  }
+
+  // --- STOP 5: Active losing streak ---
+  if (dd.current <= -2) {
+    stops++;
+    reasons.push({ level: 'bad', text: `<b>You're on a ${Math.abs(dd.current)}-loss streak right now.</b> Book Ch.6: wait for the streak to break before sizing up.` });
+  } else if (dd.current >= 2) {
+    reasons.push({ level: 'good', text: `<b>On a ${dd.current}-win streak.</b> Ride it, but don't let it make you reckless.` });
+  } else if (dd.current === 0 || dd.current === -1 || dd.current === 1) {
+    reasons.push({ level: 'info', text: '<b>No active losing streak.</b>' });
+  }
+
+  // --- STOP 6: Capital already deployed ---
+  if (portfolio.capitalPct > 50) {
+    stops++;
+    reasons.push({ level: 'bad', text: `<b>${portfolio.capitalPct.toFixed(0)}% of your account is already deployed.</b> Book Ch.6: keep dry powder for the good setups.` });
+  } else if (portfolio.capitalPct > 30) {
+    cautions++;
+    reasons.push({ level: 'warn', text: `<b>${portfolio.capitalPct.toFixed(0)}% deployed.</b> Some room left, but get selective.` });
+  } else {
+    reasons.push({ level: 'good', text: `<b>Only ${portfolio.capitalPct.toFixed(0)}% of capital deployed.</b> Plenty of room.` });
+  }
+
+  // --- STOP 7: Late night trading ---
+  const hour = new Date().getHours();
+  if (hour >= 23 || hour < 6) {
+    cautions++;
+    reasons.push({ level: 'warn', text: `<b>It's late (${hour}:00).</b> Trading tired is a known killer. Consider waiting until morning.` });
+  }
+
+  // --- Combine into verdict ---
+  let level, icon, title, sub;
+  if (stops >= 2) {
+    level = 'red'; icon = '🛑';
+    title = 'Don\'t trade today';
+    sub = `${stops} stop signals active. Protect your capital. Come back tomorrow.`;
+  } else if (stops === 1 || cautions >= 2) {
+    level = 'yellow'; icon = '⚠️';
+    title = 'Trade carefully';
+    const count = stops + cautions;
+    sub = `${count} warning${count !== 1 ? 's' : ''} active. Read the reasons before entering.`;
+  } else {
+    level = 'green'; icon = '✅';
+    title = 'Good day to trade';
+    sub = 'No stop signals. Trade the plan, follow your rules.';
+  }
+
+  return { level, icon, title, sub, reasons };
+}
+
+function renderVerdict() {
+  const slot = $('verdictSlot');
+  if (!slot) return;
+  const v = computeVerdict();
+
+  const reasonHTML = v.reasons.map(r => {
+    const icon = r.level === 'good' ? '✅'
+               : r.level === 'warn' ? '⚠️'
+               : r.level === 'bad'  ? '🛑'
+               : 'ℹ️';
+    return `<div class="verdict-reason ${r.level}">
+      <span class="r-icon">${icon}</span>
+      <span class="r-text">${r.text}</span>
+    </div>`;
+  }).join('');
+
+  slot.innerHTML = `
+    <div class="verdict-card ${v.level} ${verdictExpanded ? 'expanded' : ''}" id="verdictCard">
+      <div class="verdict-head" id="verdictHead">
+        <div class="verdict-icon">${v.icon}</div>
+        <div class="verdict-body">
+          <div class="verdict-title">${v.title}</div>
+          <div class="verdict-sub">${v.sub}</div>
+        </div>
+        ${v.reasons.length ? `<div class="verdict-chevron">▼</div>` : ''}
+      </div>
+      ${v.reasons.length ? `
+        <div class="verdict-reasons">
+          ${reasonHTML}
+          <div class="verdict-note">Heuristic only — not financial advice. You always make the final call.</div>
+        </div>` : ''}
     </div>`;
 }
 
@@ -1254,6 +1481,7 @@ function coinCardHTML(c, highlight) {
    COIN LIST RENDER
 ============================================================ */
 function renderCoinList() {
+  renderVerdict();
   const q = $('search').value.trim().toLowerCase();
   let list;
 
@@ -2349,6 +2577,15 @@ document.querySelectorAll('.chip').forEach(c => {
   });
 });
 
+// Verdict card expand/collapse
+document.body.addEventListener('click', e => {
+  const head = e.target.closest('#verdictHead');
+  if (head) {
+    verdictExpanded = !verdictExpanded;
+    renderVerdict();
+  }
+});
+
 // Timeframe toggle
 document.querySelectorAll('.tf-btn').forEach(btn => {
   btn.classList.toggle('active', btn.dataset.tf === currentTimeframe);
@@ -2560,10 +2797,12 @@ syncAccountInputs();
 fetchCrypto();
 renderJournal();
 checkStreakCooldown();
+renderVerdict();
 
 // Refresh cooldown countdown every minute
 setInterval(() => {
   if (currentView === 'journal' && isCooldownActive()) renderCooldownPanel();
+  if (currentView === 'scan') renderVerdict();
 }, 60000);
 </script>
 </body>
