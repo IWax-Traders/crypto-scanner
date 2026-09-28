@@ -67,6 +67,7 @@
     transition: border-color 0.15s;
   }
   .coin-card.highlight { border-color: var(--blue); }
+  .coin-card.parabolic { border-color: rgba(239,68,68,0.55); }
   .coin-card .top { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; margin-bottom: 12px; }
   .coin-card .name { font-size: 1rem; font-weight: 700; letter-spacing: -0.1px; }
   .coin-card .symbol { font-size: 0.75rem; color: var(--muted); margin-top: 2px; letter-spacing: 0.3px; }
@@ -90,6 +91,13 @@
   .tag.momentum-strong {
     background: rgba(249,115,22,0.18); color: #fb923c;
     text-shadow: 0 0 8px rgba(251,146,60,0.35);
+  }
+  .tag.vol-low { background: rgba(34,197,94,0.12); color: #4ade80; }
+  .tag.vol-med { background: rgba(245,158,11,0.12); color: #fbbf24; }
+  .tag.vol-high { background: rgba(239,68,68,0.12); color: #f87171; }
+  .tag.parabolic {
+    background: rgba(239,68,68,0.2); color: #fca5a5;
+    border: 1px solid rgba(239,68,68,0.5);
   }
   .trend-badge {
     display: inline-flex; align-items: center; gap: 3px;
@@ -118,6 +126,23 @@
     color: var(--muted); line-height: 1.55; margin-bottom: 14px;
   }
   .banner b { color: var(--text); }
+  /* Market regime banner */
+  .market-banner {
+    display: flex; align-items: center; gap: 12px;
+    padding: 12px 14px; border-radius: var(--radius-sm);
+    margin-bottom: 14px; font-size: 0.82rem; line-height: 1.5;
+    border: 1px solid var(--border);
+    background: var(--surface);
+  }
+  .market-banner .icon { font-size: 1.5rem; line-height: 1; flex-shrink: 0; }
+  .market-banner .body { flex: 1; min-width: 0; }
+  .market-banner .title { font-weight: 700; font-size: 0.88rem; margin-bottom: 2px; }
+  .market-banner .desc { color: var(--muted); font-size: 0.75rem; }
+  .market-banner.bull { border-color: rgba(34,197,94,0.35); background: rgba(34,197,94,0.06); }
+  .market-banner.bull .title { color: #4ade80; }
+  .market-banner.bear { border-color: rgba(239,68,68,0.35); background: rgba(239,68,68,0.06); }
+  .market-banner.bear .title { color: #f87171; }
+  .market-banner.neutral .title { color: #fbbf24; }
   .section-title { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px; color: var(--dim); margin: 22px 0 10px; }
   .section-header { display: flex; justify-content: space-between; align-items: center; margin: 22px 0 10px; gap: 10px; }
   .section-header .section-title { margin: 0; }
@@ -189,6 +214,18 @@
   .insight .good { color: var(--green); font-weight: 600; }
   .insight .bad { color: var(--red); font-weight: 600; }
   .insight .hl { color: #60a5fa; font-weight: 600; }
+  .insight .warn { color: #fbbf24; font-weight: 600; }
+  /* Portfolio health panel */
+  .portfolio-panel { background: var(--surface); border: 1px solid var(--border-soft); border-radius: var(--radius); padding: 16px; margin-bottom: 14px; }
+  .portfolio-panel .title { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.8px; color: var(--dim); font-weight: 700; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center; }
+  .portfolio-row { display: flex; justify-content: space-between; padding: 8px 0; font-size: 0.82rem; border-bottom: 1px solid var(--border-soft); }
+  .portfolio-row:last-child { border-bottom: none; }
+  .portfolio-row .k { color: var(--muted); }
+  .portfolio-row .v { font-weight: 600; }
+  .portfolio-bar { height: 6px; background: var(--bg); border-radius: 3px; overflow: hidden; margin-top: 6px; }
+  .portfolio-bar-fill { height: 100%; border-radius: 3px; transition: width 0.4s; }
+  .portfolio-warn { padding: 10px 12px; background: rgba(245,158,11,0.08); border-left: 3px solid var(--amber); border-radius: 6px; font-size: 0.78rem; color: #e8eaed; line-height: 1.55; margin-top: 10px; }
+  .portfolio-warn.danger { background: rgba(239,68,68,0.08); border-left-color: var(--red); }
   .bd-row { display: flex; justify-content: space-between; padding: 9px 0; font-size: 0.82rem; border-bottom: 1px solid var(--border-soft); }
   .bd-row:last-child { border-bottom: none; }
   .bd-row .k { color: var(--muted); }
@@ -259,6 +296,7 @@
 <main>
 
   <section class="view active" id="view-scan">
+    <div id="marketBannerSlot"></div>
     <div class="chips" id="filterChips">
       <button class="chip active" data-filter="winners" aria-pressed="true">🏆 Winners</button>
       <button class="chip" data-filter="momentum" aria-pressed="false">🚀 Momentum</button>
@@ -286,6 +324,8 @@
         </div>
       </div>
     </div>
+
+    <div id="portfolioPanel"></div>
 
     <div class="block">
       <h3>Log a trade <span class="hint">auto-fills</span></h3>
@@ -495,6 +535,7 @@ let allCoins = [];
 let currentView = 'scan';
 let currentFilter = 'winners';
 let storageWarned = false;
+let marketRegimeCache = null;
 
 const $ = id => document.getElementById(id);
 
@@ -508,24 +549,14 @@ const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, m => ({
 function safeSet(key, value) {
   try { localStorage.setItem(key, JSON.stringify(value)); return true; }
   catch (e) {
-    console.warn('Storage write failed:', key, e);
-    if (!storageWarned) {
-      storageWarned = true;
-      showBanner('⚠️ Storage full — changes may not save', 'warn');
-    }
+    if (!storageWarned) { storageWarned = true; showBanner('⚠️ Storage full', 'warn'); }
     return false;
   }
 }
 function safeGet(key, fallback) {
-  try {
-    const raw = localStorage.getItem(key);
-    return raw == null ? fallback : JSON.parse(raw);
-  } catch (e) {
-    console.warn('Storage read failed:', key, e);
-    return fallback;
-  }
+  try { const raw = localStorage.getItem(key); return raw == null ? fallback : JSON.parse(raw); }
+  catch (e) { return fallback; }
 }
-
 function money(n) {
   if (n == null || !isFinite(n)) return '—';
   const sign = n < 0 ? '-' : '';
@@ -555,10 +586,7 @@ function formatTime(iso) {
   try {
     const d = new Date(iso);
     if (isNaN(d.getTime())) return '—';
-    return d.toLocaleString(undefined, {
-      month: 'short', day: 'numeric',
-      hour: '2-digit', minute: '2-digit'
-    });
+    return d.toLocaleString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
   } catch (e) { return '—'; }
 }
 function ch24(c) { return c.price_change_percentage_24h ?? 0; }
@@ -567,7 +595,63 @@ function ch30(c) { return c.price_change_percentage_30d_in_currency ?? c.price_c
 function volRatio(c) { return c.market_cap ? c.total_volume / c.market_cap : 0; }
 
 /* ============================================================
-   TECHNICAL INDICATORS (Binance 1h klines, 10-min cache)
+   MARKET REGIME — Book Ch. 10 (Speculation of Crowds)
+   If BTC is dumping, most alt signals will fail. Know first.
+============================================================ */
+function computeMarketRegime() {
+  if (!allCoins.length) return null;
+  const btc = allCoins.find(c => c.symbol.toLowerCase() === 'btc');
+  if (!btc) return null;
+
+  const btc24 = ch24(btc);
+  const btc7 = ch7(btc);
+  const top30 = allCoins.slice(0, 30);
+  const upCount = top30.filter(c => ch24(c) > 0).length;
+  const breadth = top30.length ? (upCount / top30.length) * 100 : 50;
+
+  let state, title, desc, cls, icon;
+  if (btc7 > 5 && breadth >= 60) {
+    state = 'bull';
+    icon = '🌞';
+    title = 'Bullish market';
+    desc = `BTC +${btc7.toFixed(1)}% on the week · ${breadth.toFixed(0)}% of top 30 up. Trend signals more reliable.`;
+    cls = 'bull';
+  } else if (btc7 < -5 || breadth < 30) {
+    state = 'bear';
+    icon = '🌧️';
+    title = 'Bearish market';
+    desc = `BTC ${btc7.toFixed(1)}% this week · only ${breadth.toFixed(0)}% of top 30 up. Signals often fail here. Consider waiting.`;
+    cls = 'bear';
+  } else {
+    state = 'neutral';
+    icon = '⛅';
+    title = 'Neutral / choppy';
+    desc = `BTC ${btc7 >= 0 ? '+' : ''}${btc7.toFixed(1)}% this week · ${breadth.toFixed(0)}% of top 30 up. Quality setups only.`;
+    cls = 'neutral';
+  }
+
+  return { state, cls, icon, title, desc, btc24, btc7, breadth };
+}
+
+function renderMarketBanner() {
+  const slot = $('marketBannerSlot');
+  if (!slot) return;
+  const r = computeMarketRegime();
+  if (!r) { slot.innerHTML = ''; return; }
+
+  slot.innerHTML = `
+    <div class="market-banner ${r.cls}">
+      <div class="icon">${r.icon}</div>
+      <div class="body">
+        <div class="title">${r.title}</div>
+        <div class="desc">${r.desc}</div>
+      </div>
+    </div>`;
+}
+
+/* ============================================================
+   TECHNICAL INDICATORS (Binance klines)
+   Adds volatility per coin from the same candles.
 ============================================================ */
 const indicatorsCache = {};
 const indicatorInFlight = new Set();
@@ -579,7 +663,12 @@ function sma(arr, period) {
   for (let i = arr.length - period; i < arr.length; i++) sum += arr[i];
   return sum / period;
 }
-
+function stddev(arr) {
+  if (!arr || arr.length < 2) return null;
+  const mean = arr.reduce((a, b) => a + b, 0) / arr.length;
+  const variance = arr.reduce((s, v) => s + (v - mean) * (v - mean), 0) / arr.length;
+  return Math.sqrt(variance);
+}
 function emaSeries(arr, period) {
   if (!arr || arr.length < period) return null;
   const k = 2 / (period + 1);
@@ -587,12 +676,9 @@ function emaSeries(arr, period) {
   let seed = 0;
   for (let i = 0; i < period; i++) seed += arr[i];
   out[period - 1] = seed / period;
-  for (let i = period; i < arr.length; i++) {
-    out[i] = arr[i] * k + out[i - 1] * (1 - k);
-  }
+  for (let i = period; i < arr.length; i++) out[i] = arr[i] * k + out[i - 1] * (1 - k);
   return out;
 }
-
 function computeMacd(closes, fast = 12, slow = 26, signalP = 9) {
   if (closes.length < slow + signalP) return null;
   const emaF = emaSeries(closes, fast);
@@ -609,13 +695,8 @@ function computeMacd(closes, fast = 12, slow = 26, signalP = 9) {
   const n = macdLine.length - 1;
   const macdNow = macdLine[n], sigNow = sig[n];
   const macdPrev = macdLine[n - 1], sigPrev = sig[n - 1];
-  return {
-    macdNow, sigNow,
-    aboveSignal: macdNow > sigNow,
-    bullishCross: macdNow > sigNow && macdPrev <= sigPrev
-  };
+  return { macdNow, sigNow, aboveSignal: macdNow > sigNow, bullishCross: macdNow > sigNow && macdPrev <= sigPrev };
 }
-
 function computeRsi(closes, period = 14) {
   if (closes.length < period + 1) return null;
   let gains = 0, losses = 0;
@@ -627,23 +708,19 @@ function computeRsi(closes, period = 14) {
   let avgLoss = losses / period;
   for (let i = period + 1; i < closes.length; i++) {
     const d = closes[i] - closes[i - 1];
-    const g = d > 0 ? d : 0;
-    const l = d < 0 ? -d : 0;
-    avgGain = (avgGain * (period - 1) + g) / period;
-    avgLoss = (avgLoss * (period - 1) + l) / period;
+    avgGain = (avgGain * (period - 1) + (d > 0 ? d : 0)) / period;
+    avgLoss = (avgLoss * (period - 1) + (d < 0 ? -d : 0)) / period;
   }
   if (avgLoss === 0) return 100;
   const rs = avgGain / avgLoss;
   return 100 - (100 / (1 + rs));
 }
-
 async function fetchBinanceKlines(symbol, interval = '1h', limit = 200) {
   const url = `https://api.binance.com/api/v3/klines?symbol=${encodeURIComponent(symbol)}&interval=${interval}&limit=${limit}`;
   const res = await fetch(url);
   if (!res.ok) throw new Error('Binance ' + res.status);
   return await res.json();
 }
-
 async function computeIndicators(coin) {
   const symbol = coin.symbol.toUpperCase() + 'USDT';
   try {
@@ -681,14 +758,25 @@ async function computeIndicators(coin) {
       else if (lastVol < avgVol20 * 0.7) volume = 'low';
     }
 
-    return { trend, momentum, volume, ts: Date.now() };
+    // --- Volatility (Book Ch. 7 & 9): stddev of hourly returns, scaled to daily
+    const hourlyReturns = [];
+    for (let i = 1; i < closes.length; i++) {
+      hourlyReturns.push((closes[i] - closes[i - 1]) / closes[i - 1]);
+    }
+    const sd = stddev(hourlyReturns);
+    const dailyVol = sd != null ? sd * Math.sqrt(24) * 100 : null;
+    let volatility = 'unknown';
+    if (dailyVol != null) {
+      if (dailyVol < 2) volatility = 'low';
+      else if (dailyVol < 5) volatility = 'medium';
+      else volatility = 'high';
+    }
+
+    return { trend, momentum, volume, volatility, dailyVol, ts: Date.now() };
   } catch (e) {
-    return { trend: 'neutral', momentum: 'neutral', volume: 'neutral', ts: Date.now(), error: true };
+    return { trend: 'neutral', momentum: 'neutral', volume: 'neutral', volatility: 'unknown', dailyVol: null, ts: Date.now(), error: true };
   }
 }
-
-/* Worker pool: 6 concurrent (matches browser per-origin limit).
-   A new request starts the instant one finishes — no chunk waiting. */
 async function enrichCoins(coins) {
   const STALE = 10 * 60 * 1000;
   const now = Date.now();
@@ -701,41 +789,34 @@ async function enrichCoins(coins) {
   if (!todo.length) return;
 
   todo.forEach(c => indicatorInFlight.add(c.id));
-
   const CONCURRENCY = 6;
   let cursor = 0;
 
   async function worker() {
     while (cursor < todo.length) {
-      const idx = cursor++;
-      const coin = todo[idx];
+      const coin = todo[cursor++];
       const ind = await computeIndicators(coin);
       indicatorsCache[coin.id] = ind;
       indicatorInFlight.delete(coin.id);
-
       if (currentView === 'scan') {
         clearTimeout(enrichTimer);
         enrichTimer = setTimeout(renderCoinList, 300);
       }
     }
   }
-
   await Promise.all(Array.from({ length: CONCURRENCY }, worker));
 }
 
 /* ============================================================
-   STABLECOIN DETECTION
+   STABLECOIN + SETUP DETECTION
 ============================================================ */
 function isStablecoin(c) {
   const p = c.current_price ?? 0;
   const a = Math.abs(ch24(c));
   const w = Math.abs(ch7(c));
   const m = Math.abs(ch30(c));
-  const nearPeg = p >= 0.95 && p <= 1.05;
-  const lowMovement = a < 1.0 && w < 2.5 && m < 4.0;
-  return nearPeg && lowMovement;
+  return p >= 0.95 && p <= 1.05 && a < 1.0 && w < 2.5 && m < 4.0;
 }
-
 function isMomentumBurst(c) {
   return ch24(c) >= 3 && ch24(c) <= 8 && ch7(c) > 0 && volRatio(c) >= 0.03;
 }
@@ -744,14 +825,25 @@ function isPullback(c) {
 }
 
 /* ============================================================
-   CONFLUENCE SCORE (0-100)
-     Trend (SMA 50/200)      → up to 25
-     Momentum (MACD + RSI)   → up to 25
-     Volume vs 20-period avg → up to 15
-     Quality base            → up to 35
+   PARABOLIC / BUBBLE DETECTION — Book Ch. 10
+   A coin up 40%+ in 7 days, or 20%+ in 24h, is a blow-off top.
+   These are the setups that trap retail. Flag them.
+============================================================ */
+function isParabolic(c) {
+  const a = ch24(c);
+  const w = ch7(c);
+  const m = ch30(c);
+  if (w >= 40) return true;
+  if (a >= 20) return true;
+  if (m >= 100 && w >= 15) return true;
+  return false;
+}
+
+/* ============================================================
+   SCORE (Confluence-based, unchanged weights)
 ============================================================ */
 function qualityScore35(c) {
-  const r1  = ch24(c), r7 = ch7(c) / 7, r30 = ch30(c) / 30;
+  const r1 = ch24(c), r7 = ch7(c) / 7, r30 = ch30(c) / 30;
   const trend = r1 * 0.5 + r7 * 0.3 + r30 * 0.2;
   const trendScore = (1 / (1 + Math.exp(-trend / 2))) * 30 * 0.35;
   const mean = (r1 + r7 + r30) / 3;
@@ -762,10 +854,8 @@ function qualityScore35(c) {
   const capScore = Math.max(0, 20 - Math.log10(rank + 1) * 4) * 0.35;
   return trendScore + consistencyScore + liqScore + capScore;
 }
-
 function confluenceScore(c) {
   const ind = indicatorsCache[c.id];
-
   let trendPts = 12, momentumPts = 12, volumePts = 7;
 
   if (ind) {
@@ -786,9 +876,13 @@ function confluenceScore(c) {
   }
 
   const base = qualityScore35(c);
-  return Math.max(0, Math.min(100, Math.round(trendPts + momentumPts + volumePts + base)));
-}
+  let total = trendPts + momentumPts + volumePts + base;
 
+  // Book Ch. 10: parabolic spikes are often traps, penalise heavily
+  if (isParabolic(c)) total *= 0.5;
+
+  return Math.max(0, Math.min(100, Math.round(total)));
+}
 function winnerScore(c) { return confluenceScore(c); }
 
 function confluenceCount(c) {
@@ -801,7 +895,6 @@ function confluenceCount(c) {
   if (expectedValue(c) > 0) n++;
   return n;
 }
-
 function scoreColor(s) {
   if (s >= 70) return 'var(--green)';
   if (s >= 50) return '#fbbf24';
@@ -809,6 +902,9 @@ function scoreColor(s) {
   return 'var(--red)';
 }
 
+/* ============================================================
+   WIN CHANCE (logistic model + parabolic penalty)
+============================================================ */
 function estimateWinChance(c) {
   const isMom = isMomentumBurst(c);
   const isPull = isPullback(c);
@@ -817,8 +913,7 @@ function estimateWinChance(c) {
   else if (isMom) baseP = 0.28;
   let logOdds = Math.log(baseP / (1 - baseP));
 
-  const qs = winnerScore(c);
-  logOdds += ((qs - 50) / 50) * 0.8;
+  logOdds += ((winnerScore(c) - 50) / 50) * 0.8;
 
   const v = volRatio(c);
   logOdds += Math.max(-0.6, Math.min(0.6, (v - 0.05) * 10));
@@ -829,14 +924,16 @@ function estimateWinChance(c) {
   if (a > 0 && m > 0) logOdds += 0.2;
   if (Math.abs(a) > 6) logOdds -= 0.4;
 
+  // Book Ch. 10: extended moves reverse
+  if (isParabolic(c)) logOdds -= 1.0;
+
   const rank = c.market_cap_rank ?? 500;
   if (rank <= 20) logOdds += 0.2;
   else if (rank >= 100) logOdds -= 0.3;
 
   const p = 1 / (1 + Math.exp(-logOdds));
-  return Math.max(8, Math.min(65, Math.round(p * 100)));
+  return Math.max(5, Math.min(65, Math.round(p * 100)));
 }
-
 function setupRR(c) {
   if (isPullback(c)) return 1.17;
   if (isMomentumBurst(c)) return 2.25;
@@ -844,8 +941,7 @@ function setupRR(c) {
 }
 function expectedValue(c) {
   const p = estimateWinChance(c) / 100;
-  const rr = setupRR(c);
-  return (p * rr) - ((1 - p) * 1);
+  return (p * setupRR(c)) - ((1 - p) * 1);
 }
 function chanceColor(p) {
   if (p >= 55) return 'var(--green)';
@@ -865,11 +961,8 @@ const DEFAULT_ALERT_SETTINGS = {
   nearStop: true, nearTarget: true, onClose: true, onSetup: true,
   nearThreshold: 0.5
 };
-function loadAlertSettings() {
-  return Object.assign({}, DEFAULT_ALERT_SETTINGS, safeGet(ALERT_SETTINGS_KEY, {}));
-}
+function loadAlertSettings() { return Object.assign({}, DEFAULT_ALERT_SETTINGS, safeGet(ALERT_SETTINGS_KEY, {})); }
 function saveAlertSettings(s) { safeSet(ALERT_SETTINGS_KEY, s); }
-
 function nearThresholdFraction() {
   const raw = parseFloat(loadAlertSettings().nearThreshold);
   const pct = isNaN(raw) ? 0.5 : Math.max(0, Math.min(5, raw));
@@ -922,30 +1015,25 @@ let swReg = null;
 let swReady = null;
 if ('serviceWorker' in navigator && location.protocol !== 'file:') {
   swReady = navigator.serviceWorker.register('sw.js')
-    .then(r => { swReg = r; return r; })
-    .catch(() => null);
+    .then(r => { swReg = r; return r; }).catch(() => null);
 }
-
 async function pushNative(title, body, tag = 'crypto-general') {
   if (!('Notification' in window) || Notification.permission !== 'granted') return;
   const opts = { body, tag, renotify: true, silent: true, icon: ICON_DATA_URL, badge: ICON_DATA_URL };
   try {
     let reg = swReg;
     if (!reg && swReady) reg = await swReady;
-    if (!reg && navigator.serviceWorker.ready) {
-      reg = await navigator.serviceWorker.ready.catch(() => null);
-    }
+    if (!reg && navigator.serviceWorker.ready) reg = await navigator.serviceWorker.ready.catch(() => null);
     if (reg && typeof reg.showNotification === 'function') {
       await reg.showNotification(title, opts);
       return;
     }
-  } catch (e) { /* fall through */ }
+  } catch (e) {}
   try {
     const n = new Notification(title, opts);
     setTimeout(() => { try { n.close(); } catch(e){} }, 15000);
-  } catch (e) { /* unsupported */ }
+  } catch (e) {}
 }
-
 let bannerTimer = null;
 function showBanner(text, kind) {
   const b = $('alertBanner');
@@ -954,7 +1042,6 @@ function showBanner(text, kind) {
   clearTimeout(bannerTimer);
   bannerTimer = setTimeout(() => { b.className = kind; }, 6000);
 }
-
 function fireAlert(kind, title, message, tag) {
   const s = loadAlertSettings();
   if (!s.enabled) return;
@@ -977,10 +1064,7 @@ function fireAlert(kind, title, message, tag) {
    COIN LOOKUP
 ============================================================ */
 function findCoinLive(symbol, coinId) {
-  if (coinId) {
-    const byId = allCoins.find(c => c.id === coinId);
-    if (byId) return byId;
-  }
+  if (coinId) { const byId = allCoins.find(c => c.id === coinId); if (byId) return byId; }
   const s = String(symbol || '').toLowerCase();
   if (!s) return null;
   let best = null;
@@ -1002,12 +1086,19 @@ function coinCardHTML(c, highlight) {
   const chance = estimateWinChance(c);
   const ev = expectedValue(c);
   const ind = indicatorsCache[c.id];
+  const parabolic = isParabolic(c);
 
   const tags = [];
   if (isMomentumBurst(c)) tags.push('<span class="tag momentum">Momentum</span>');
   if (isPullback(c)) tags.push('<span class="tag pullback">Pullback</span>');
-  if (ind && ind.momentum === 'strong') {
-    tags.push('<span class="tag momentum-strong">⚡ Strong Momentum</span>');
+  if (ind && ind.momentum === 'strong') tags.push('<span class="tag momentum-strong">⚡ Strong</span>');
+  if (parabolic) tags.push('<span class="tag parabolic">⚠️ Parabolic</span>');
+
+  // Volatility badge
+  if (ind && ind.volatility !== 'unknown') {
+    const vClass = ind.volatility === 'low' ? 'vol-low' : ind.volatility === 'high' ? 'vol-high' : 'vol-med';
+    const vLabel = ind.volatility === 'low' ? '📉 Low vol' : ind.volatility === 'high' ? '🌊 High vol' : '〰️ Med vol';
+    tags.push(`<span class="tag ${vClass}">${vLabel}</span>`);
   }
 
   let trendBadge = '';
@@ -1020,10 +1111,9 @@ function coinCardHTML(c, highlight) {
   }
 
   const volCheck = ind && ind.volume === 'high' ? '<span class="vol-check">✓</span>' : '';
-
   const confCount = confluenceCount(c);
   const confDots = ind ? `
-    <span class="conf-dots" title="${confCount} of 4 conditions met">
+    <span class="conf-dots" title="${confCount} of 4">
       <span class="conf-dot trend ${ind.trend === 'up' || ind.trend === 'up-partial' ? 'on' : ''}"></span>
       <span class="conf-dot mom ${ind.momentum === 'strong' ? 'on' : ''}"></span>
       <span class="conf-dot vol ${ind.volume === 'high' ? 'on' : ''}"></span>
@@ -1038,7 +1128,7 @@ function coinCardHTML(c, highlight) {
     </div>` : '';
 
   return `
-    <div class="coin-card ${highlight ? 'highlight' : ''}" data-symbol="${esc(c.symbol)}" data-id="${esc(c.id)}" style="cursor:pointer">
+    <div class="coin-card ${highlight ? 'highlight' : ''} ${parabolic ? 'parabolic' : ''}" data-symbol="${esc(c.symbol)}" data-id="${esc(c.id)}" style="cursor:pointer">
       <div class="top">
         <div>
           <div class="name">${esc(c.name)}</div>
@@ -1073,9 +1163,7 @@ function renderCoinList() {
   if (currentFilter === 'momentum') list = allCoins.filter(isMomentumBurst);
   else if (currentFilter === 'pullback') list = allCoins.filter(isPullback);
   else if (currentFilter === 'winners') list = allCoins.filter(c => isMomentumBurst(c) || isPullback(c));
-  else if (currentFilter === 'confluence') {
-    list = allCoins.filter(c => !isStablecoin(c) && confluenceCount(c) >= 3);
-  }
+  else if (currentFilter === 'confluence') list = allCoins.filter(c => !isStablecoin(c) && confluenceCount(c) >= 3);
   else list = allCoins;
 
   list = list.filter(c => !isStablecoin(c));
@@ -1088,17 +1176,12 @@ function renderCoinList() {
   if (currentFilter === 'winners') {
     explainer = `
       <div class="banner" style="border-left-color:var(--amber);margin-bottom:16px">
-        <b>What the % means.</b> It's an estimate based on how similar setups performed historically, adjusted by this coin's quality score. <b>It is not a guarantee.</b> A 30% chance with a 2:1 reward is often better than a 60% chance with a 0.5:1 reward — that's why Expected Value is shown too. <b>Green EV = profitable long-term, red EV = losing long-term.</b>
+        <b>What the % means.</b> An estimate from historical setup rates, adjusted by this coin's quality score. <b>Not a guarantee.</b> ⚠️ <b>Parabolic</b> tags mean the coin is up 40%+ in 7d — book Ch. 10 warns these reverse hard. Green EV = profitable long-term.
       </div>`;
   } else if (currentFilter === 'confluence') {
     explainer = `
       <div class="banner" style="border-left-color:var(--green);margin-bottom:16px">
-        <b>✨ Confluence filter.</b> Only shows coins where <b>3 or 4 of these 4 conditions</b> are true:
-        <span style="color:#60a5fa">Trend UP</span> (SMA 50 &gt; 200), 
-        <span style="color:#fb923c">Strong Momentum</span> (MACD + RSI), 
-        <span style="color:var(--green)">High Volume</span> (vs 20-period avg), 
-        <span style="color:var(--green)">Green EV</span>.
-        Coins may take a moment to appear as technical data loads.
+        <b>✨ Confluence filter.</b> Only 3+ of: <span style="color:#60a5fa">Trend UP</span> · <span style="color:#fb923c">Strong Momentum</span> · <span style="color:var(--green)">High Volume</span> · <span style="color:var(--green)">Green EV</span>.
       </div>`;
   }
 
@@ -1107,15 +1190,18 @@ function renderCoinList() {
       winners: ['🏆', 'No qualified setups right now.', 'This is the correct result most of the time. Wait for the setup.'],
       momentum: ['🚀', 'No momentum setups.', 'Needs a coin up 3–8% today with a positive 7-day trend.'],
       pullback: ['📉', 'No pullback setups.', 'Needs a coin up 12%+ this week that dipped 2–5% today.'],
-      confluence: ['✨', 'No confluence setups yet.', 'Coins must meet 3 of 4 conditions. Technical data is loading — check back in a moment.'],
+      confluence: ['✨', 'No confluence setups yet.', 'Coins must meet 3 of 4 conditions.'],
       all: ['📊', 'No coins found.', 'Try refreshing.']
     };
     const [e, t, s] = msgs[currentFilter] || msgs.all;
     el.innerHTML = explainer + `<div class="empty"><span class="emoji">${e}</span><b>${t}</b><br>${s}</div>`;
-  } else {
-    const highlight = currentFilter === 'winners' || currentFilter === 'confluence';
-    el.innerHTML = explainer + list.map(c => coinCardHTML(c, highlight)).join('');
+    renderMarketBanner();
+    return;
   }
+
+  const highlight = currentFilter === 'winners' || currentFilter === 'confluence';
+  el.innerHTML = explainer + list.map(c => coinCardHTML(c, highlight)).join('');
+  renderMarketBanner();
 
   const toEnrich = list.slice(0, 40);
   if (toEnrich.length) enrichCoins(toEnrich);
@@ -1133,8 +1219,7 @@ async function fetchCrypto() {
   if (fetching) return;
   fetching = true;
   const btn = $('refreshBtn');
-  btn.classList.add('spin');
-  btn.disabled = true;
+  btn.classList.add('spin'); btn.disabled = true;
   try {
     const res = await fetch(API_URL);
     if (!res.ok) throw new Error('HTTP ' + res.status);
@@ -1151,29 +1236,23 @@ async function fetchCrypto() {
     const w = allCoins.filter(c => !isStablecoin(c) && (isMomentumBurst(c) || isPullback(c))).length;
     $('status').textContent = `${allCoins.length} coins · ${w} setup${w !== 1 ? 's' : ''} · ${new Date().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}`;
   } catch (e) {
-    console.error(e);
     failStreak++;
-    const msg = failStreak >= 3
-      ? `Failed to load (${failStreak}×) — backing off`
-      : 'Failed to load — tap ↻';
+    const msg = failStreak >= 3 ? `Failed to load (${failStreak}×) — backing off` : 'Failed to load — tap ↻';
     $('status').innerHTML = `<span style="color:var(--red)">${msg}</span>`;
   } finally {
     fetching = false;
-    btn.classList.remove('spin');
-    btn.disabled = false;
+    btn.classList.remove('spin'); btn.disabled = false;
     scheduleNextFetch();
   }
 }
-
 function scheduleNextFetch() {
   clearTimeout(pollTimer);
   const delay = Math.min(90000 * Math.pow(1.5, failStreak), 900000);
   pollTimer = setTimeout(fetchCrypto, delay);
 }
-
 function computePnl(t, exit) {
-  const units = t.entry > 0 && t.size > 0 ? t.size / t.entry : 0;
-  return (exit - t.entry) * units;
+  const u = t.entry > 0 && t.size > 0 ? t.size / t.entry : 0;
+  return (exit - t.entry) * u;
 }
 
 /* ============================================================
@@ -1197,23 +1276,18 @@ function autoCloseTrades({ silent = false } = {}) {
       t.pnl = computePnl(t, t.stop);
       t.pnlPct = ((t.stop - t.entry) / t.entry) * 100;
       changed = true;
-      if (s.onClose && !silent) {
-        fireAlert('loss', `🛑 ${t.coin} stopped out`, `Loss ${money(Math.abs(t.pnl))}`, 'trade-' + t.coin);
-      }
+      if (s.onClose && !silent) fireAlert('loss', `🛑 ${t.coin} stopped out`, `Loss ${money(Math.abs(t.pnl))}`, 'trade-' + t.coin);
     } else if (live >= t.target) {
       t.exit = t.target; t.status = 'win';
       t.closeDate = new Date().toISOString(); t.autoClosed = 'target';
       t.pnl = computePnl(t, t.target);
       t.pnlPct = ((t.target - t.entry) / t.entry) * 100;
       changed = true;
-      if (s.onClose && !silent) {
-        fireAlert('win', `✅ ${t.coin} hit target`, `Profit +${money(t.pnl)}`, 'trade-' + t.coin);
-      }
+      if (s.onClose && !silent) fireAlert('win', `✅ ${t.coin} hit target`, `Profit +${money(t.pnl)}`, 'trade-' + t.coin);
     }
   });
   if (changed) { saveTrades(trades); if (currentView === 'journal') renderJournal(); }
 }
-
 function checkNearLevels() {
   const s = loadAlertSettings();
   if (!s.nearStop && !s.nearTarget) return;
@@ -1228,31 +1302,24 @@ function checkNearLevels() {
     const live = c.current_price;
     const toStop = Math.abs(live - t.stop) / t.entry;
     const toTarget = Math.abs(t.target - live) / t.entry;
-
     if (s.nearStop && live > t.stop && toStop <= threshold && t.alertedStop !== true) {
       t.alertedStop = true; changed = true;
-      fireAlert('warn', `⚠️ ${t.coin} near stop`, `${price(live)} · only ${(toStop*100).toFixed(2)}% away`, 'trade-' + t.coin);
+      fireAlert('warn', `⚠️ ${t.coin} near stop`, `${price(live)} · ${(toStop*100).toFixed(2)}% away`, 'trade-' + t.coin);
     }
     if (s.nearTarget && live < t.target && toTarget <= threshold && t.alertedTarget !== true) {
       t.alertedTarget = true; changed = true;
       fireAlert('info', `🎯 ${t.coin} near target`, `${price(live)} · ${(toTarget*100).toFixed(2)}% away`, 'trade-' + t.coin);
     }
-    if (t.alertedStop && (live <= t.stop || (live - t.stop) / t.entry > threshold * 2)) {
-      t.alertedStop = false; changed = true;
-    }
-    if (t.alertedTarget && (live >= t.target || (t.target - live) / t.entry > threshold * 2)) {
-      t.alertedTarget = false; changed = true;
-    }
+    if (t.alertedStop && (live <= t.stop || (live - t.stop) / t.entry > threshold * 2)) { t.alertedStop = false; changed = true; }
+    if (t.alertedTarget && (live >= t.target || (t.target - live) / t.entry > threshold * 2)) { t.alertedTarget = false; changed = true; }
   });
   if (changed) saveTrades(trades);
 }
-
 function loadSeenSetups() { return safeGet(SEEN_SETUPS_KEY, {}); }
 function saveSeenSetups(s) { safeSet(SEEN_SETUPS_KEY, s); }
-
 function checkNewSetups({ silent = false } = {}) {
   const s = loadAlertSettings();
-  const setups = allCoins.filter(c => !isStablecoin(c) && (isMomentumBurst(c) || isPullback(c)));
+  const setups = allCoins.filter(c => !isStablecoin(c) && !isParabolic(c) && (isMomentumBurst(c) || isPullback(c)));
   if (!setups.length) return;
   const seen = loadSeenSetups();
   const now = Date.now();
@@ -1261,9 +1328,7 @@ function checkNewSetups({ silent = false } = {}) {
   setups.forEach(c => {
     const key = c.symbol.toUpperCase();
     if (now - (seen[key] || 0) > FOUR_HOURS) {
-      if (!silent && s.onSetup) {
-        newOnes.push({ symbol: key, name: c.name, setup: isMomentumBurst(c) ? 'Momentum' : 'Pullback', score: winnerScore(c) });
-      }
+      if (!silent && s.onSetup) newOnes.push({ symbol: key, name: c.name, setup: isMomentumBurst(c) ? 'Momentum' : 'Pullback', score: winnerScore(c) });
       seen[key] = now;
     }
   });
@@ -1278,11 +1343,9 @@ function checkNewSetups({ silent = false } = {}) {
 }
 
 /* ============================================================
-   JOURNAL: AUTO-FILL + ADD
+   JOURNAL: AUTO-FILL
 ============================================================ */
-function clearTradeFields() {
-  ['jEntry','jStop','jTarget','jSize'].forEach(id => { $(id).value = ''; });
-}
+function clearTradeFields() { ['jEntry','jStop','jTarget','jSize'].forEach(id => { $(id).value = ''; }); }
 
 function autoFillTrade() {
   const sym = $('jCoin').value.trim().toUpperCase();
@@ -1290,25 +1353,18 @@ function autoFillTrade() {
   const preview = $('jPreview');
   const settings = loadSettings();
 
-  if (!sym) {
-    clearTradeFields();
-    preview.textContent = 'Type a coin symbol and the trade fills in automatically.';
-    return;
-  }
+  if (!sym) { clearTradeFields(); preview.textContent = 'Type a coin symbol and the trade fills in automatically.'; return; }
   const c = findCoinLive(sym);
-  if (!c) {
-    clearTradeFields();
-    preview.innerHTML = `<span style="color:var(--red)">Coin "${esc(sym)}" not found in top 100.</span>`;
-    return;
-  }
-  if (isStablecoin(c)) {
-    clearTradeFields();
-    preview.innerHTML = `<span style="color:var(--red)">${esc(sym)} is a stablecoin — no trading setup possible.</span>`;
-    return;
-  }
+  if (!c) { clearTradeFields(); preview.innerHTML = `<span style="color:var(--red)">Coin "${esc(sym)}" not found in top 100.</span>`; return; }
+  if (isStablecoin(c)) { clearTradeFields(); preview.innerHTML = `<span style="color:var(--red)">${esc(sym)} is a stablecoin — no trading setup possible.</span>`; return; }
 
   const entry = c.current_price;
-  const stopPct = setup === 'Momentum' ? 0.02 : 0.03;
+  const ind = indicatorsCache[c.id];
+  // Adjust stop % based on volatility (Book Ch. 7: wider stops for wilder assets)
+  let stopPct = setup === 'Momentum' ? 0.02 : 0.03;
+  if (ind && ind.volatility === 'high') stopPct *= 1.5;
+  else if (ind && ind.volatility === 'low') stopPct *= 0.8;
+
   const targetPct = setup === 'Momentum' ? 0.045 : 0.035;
   const stop = entry * (1 - stopPct);
   const target = entry * (1 + targetPct);
@@ -1322,10 +1378,16 @@ function autoFillTrade() {
   $('jSize').value = posValue.toFixed(2);
 
   const rrr = (targetPct / stopPct).toFixed(2);
+  const volNote = ind && ind.volatility === 'high'
+    ? '<br><span style="color:#f87171">⚠️ High volatility — wider stop applied.</span>'
+    : '';
+  const parabNote = isParabolic(c)
+    ? '<br><span style="color:#f87171">⚠️ Parabolic move — book Ch.10 warns these reverse.</span>'
+    : '';
   preview.innerHTML = `
     <b>${esc(c.name)}</b> · live ${price(entry)}<br>
     Stop ${(stopPct*100).toFixed(1)}% · Target +${(targetPct*100).toFixed(1)}% · R:R <span class="green">${rrr}:1</span><br>
-    Risk <b>${money(riskAmount)}</b> · Size <b>${money(posValue)}</b> (<span class="green">${units(position)} ${esc(c.symbol.toUpperCase())}</span>)`;
+    Risk <b>${money(riskAmount)}</b> · Size <b>${money(posValue)}</b> (<span class="green">${units(position)} ${esc(c.symbol.toUpperCase())}</span>)${volNote}${parabNote}`;
 }
 
 function addTrade() {
@@ -1338,14 +1400,8 @@ function addTrade() {
   const notes = $('jNotes').value.trim();
   const preview = $('jPreview');
 
-  if (!coin || !entry || !stop || !target) {
-    preview.innerHTML = '<span style="color:var(--red)">Fill in coin, entry, stop, and target.</span>';
-    return;
-  }
-  if (!(stop < entry && entry < target)) {
-    preview.innerHTML = '<span style="color:var(--red)">Stop must be below entry, and target above entry.</span>';
-    return;
-  }
+  if (!coin || !entry || !stop || !target) { preview.innerHTML = '<span style="color:var(--red)">Fill coin, entry, stop, target.</span>'; return; }
+  if (!(stop < entry && entry < target)) { preview.innerHTML = '<span style="color:var(--red)">Stop must be below entry, and target above entry.</span>'; return; }
 
   const live = findCoinLive(coin);
   const trades = loadTrades();
@@ -1358,7 +1414,6 @@ function addTrade() {
   });
   saveTrades(trades);
   fireAlert('info', `📝 ${coin} logged`, `${setup} · Entry ${price(entry)}`, 'journal');
-
   $('jCoin').value = ''; clearTradeFields(); $('jNotes').value = '';
   $('jPreview').textContent = 'Saved. Type the next coin to log another.';
   renderJournal();
@@ -1388,40 +1443,30 @@ function closeTradeManual(id) {
   t.closeDate = new Date().toISOString();
   t.autoClosed = null;
   saveTrades(trades);
-  closingTradeId = null;
-  closingExitValue = '';
+  closingTradeId = null; closingExitValue = '';
   fireAlert(t.status === 'win' ? 'win' : 'loss',
     `${t.status === 'win' ? '✅' : '🛑'} ${t.coin} closed`,
-    `${t.pnl >= 0 ? '+' : ''}${money(Math.abs(t.pnl))}`,
-    'trade-' + t.coin);
+    `${t.pnl >= 0 ? '+' : ''}${money(Math.abs(t.pnl))}`, 'trade-' + t.coin);
   renderJournal();
 }
-
 function deleteTrade(id) {
   saveTrades(loadTrades().filter(t => t.id !== id));
-  deletingTradeId = null;
-  closingTradeId = null;
-  closingExitValue = '';
+  deletingTradeId = null; closingTradeId = null; closingExitValue = '';
   if (editingTradeId === id) { editingTradeId = null; editDraft = null; }
   renderJournal();
 }
-
 function clearClosedTrades() {
   const trades = loadTrades();
   const remaining = trades.filter(t => t.status === 'open');
   const removed = trades.length - remaining.length;
   if (removed === 0) return;
   saveTrades(remaining);
-  bulkConfirmOpen = false;
-  deletingTradeId = null;
-  closingTradeId = null;
-  closingExitValue = '';
-  editingTradeId = null;
-  editDraft = null;
+  bulkConfirmOpen = false; deletingTradeId = null;
+  closingTradeId = null; closingExitValue = '';
+  editingTradeId = null; editDraft = null;
   showBanner(`🗑️ Cleared ${removed} closed trade${removed !== 1 ? 's' : ''}`, 'info');
   renderJournal();
 }
-
 function beginEditTrade(id) {
   const trades = loadTrades();
   const t = trades.find(x => x.id === id);
@@ -1433,21 +1478,11 @@ function beginEditTrade(id) {
     target: String(t.target), size: String(t.size || 0),
     notes: t.notes || ''
   };
-  closingTradeId = null;
-  deletingTradeId = null;
-  bulkConfirmOpen = false;
+  closingTradeId = null; deletingTradeId = null; bulkConfirmOpen = false;
   renderJournal();
-  setTimeout(() => {
-    const first = document.querySelector('.edit-field[data-field="coin"]');
-    if (first) first.focus();
-  }, 30);
+  setTimeout(() => { const first = document.querySelector('.edit-field[data-field="coin"]'); if (first) first.focus(); }, 30);
 }
-
-function cancelEditTrade() {
-  editingTradeId = null;
-  editDraft = null;
-  renderJournal();
-}
+function cancelEditTrade() { editingTradeId = null; editDraft = null; renderJournal(); }
 
 function saveEditedTrade(id) {
   if (!editDraft) return;
@@ -1459,29 +1494,15 @@ function saveEditedTrade(id) {
   const size = parseFloat(editDraft.size) || 0;
   const notes = String(editDraft.notes || '').trim();
 
-  if (!coin || !isFinite(entry) || !isFinite(stop) || !isFinite(target)) {
-    showBanner('⚠️ Fill coin, entry, stop, target', 'warn');
-    return;
-  }
-  if (!(stop < entry && entry < target)) {
-    showBanner('⚠️ Stop must be < entry < target', 'warn');
-    return;
-  }
+  if (!coin || !isFinite(entry) || !isFinite(stop) || !isFinite(target)) { showBanner('⚠️ Fill coin, entry, stop, target', 'warn'); return; }
+  if (!(stop < entry && entry < target)) { showBanner('⚠️ Stop must be < entry < target', 'warn'); return; }
 
   const trades = loadTrades();
   const idx = trades.findIndex(x => x.id === id);
   if (idx === -1) return;
   const t = trades[idx];
-
-  if (coin !== t.coin) {
-    const live = findCoinLive(coin);
-    t.coinId = live ? live.id : null;
-  }
-
-  t.coin = coin; t.setup = setup;
-  t.entry = entry; t.stop = stop; t.target = target;
-  t.size = size; t.notes = notes;
-
+  if (coin !== t.coin) { const live = findCoinLive(coin); t.coinId = live ? live.id : null; }
+  t.coin = coin; t.setup = setup; t.entry = entry; t.stop = stop; t.target = target; t.size = size; t.notes = notes;
   if (t.status === 'win' || t.status === 'loss') {
     if (t.exit != null) {
       t.pnl = computePnl(t, t.exit);
@@ -1489,16 +1510,14 @@ function saveEditedTrade(id) {
       t.status = t.pnl >= 0 ? 'win' : 'loss';
     }
   }
-
   saveTrades(trades);
-  editingTradeId = null;
-  editDraft = null;
+  editingTradeId = null; editDraft = null;
   showBanner('✅ Trade updated', 'info');
   renderJournal();
 }
 
 /* ============================================================
-   STATS + INSIGHTS
+   STATS + PORTFOLIO ANALYSIS
 ============================================================ */
 function computeStats(trades) {
   const closed = trades.filter(t => t.status === 'win' || t.status === 'loss');
@@ -1522,12 +1541,110 @@ function breakdownBy(trades, key) {
   return g;
 }
 
-function generateInsight(stats, setupG, coinG) {
-  if (stats.closed.length === 0) {
-    return `<div class="insight"><div class="title">🧠 Learning mode</div>Log at least <b>20 closed trades</b> before trusting patterns. Right now: <b>0</b>. The app watches live prices and alerts you the moment a trade hits its stop or target.</div>`;
+/* Drawdown + streak tracking (Book Ch. 6) */
+function computeDrawdown(trades) {
+  const closed = trades
+    .filter(t => t.status === 'win' || t.status === 'loss')
+    .slice()
+    .sort((a, b) => new Date(a.closeDate || a.date) - new Date(b.closeDate || b.date));
+  if (!closed.length) return { maxDD: 0, peak: 0, current: 0 };
+
+  let equity = 0, peak = 0, maxDD = 0, streak = 0, maxLossStreak = 0, maxWinStreak = 0;
+  let currentStreak = 0;
+  closed.forEach(t => {
+    equity += t.pnl || 0;
+    if (equity > peak) peak = equity;
+    const dd = peak - equity;
+    if (dd > maxDD) maxDD = dd;
+
+    if (t.status === 'loss') { if (currentStreak > 0) currentStreak = 0; currentStreak--; }
+    else { if (currentStreak < 0) currentStreak = 0; currentStreak++; }
+    if (currentStreak < maxLossStreak) maxLossStreak = currentStreak;
+    if (currentStreak > maxWinStreak) maxWinStreak = currentStreak;
+  });
+  return { maxDD, peak, current: currentStreak, maxLossStreak: Math.abs(maxLossStreak), maxWinStreak };
+}
+
+/* Calibration: compare actual win rate to estimated (Book Ch. 12) */
+function computeCalibration(trades) {
+  const closed = trades.filter(t => t.status === 'win' || t.status === 'loss');
+  if (closed.length < 5) return null;
+
+  let sumEst = 0, count = 0;
+  closed.forEach(t => {
+    const live = findCoinLive(t.coin, t.coinId);
+    if (!live) return;
+    const est = estimateWinChance(live);
+    sumEst += est;
+    count++;
+  });
+  if (!count) return null;
+  const avgEst = sumEst / count;
+  const stats = computeStats(trades);
+  const actual = stats.winRate;
+  return { avgEst, actual, delta: actual - avgEst, samples: closed.length };
+}
+
+/* Portfolio health (Book Ch. 6: risk management) */
+function analyzePortfolio(trades) {
+  const settings = loadSettings();
+  const open = trades.filter(t => t.status === 'open');
+  const totalDeployed = open.reduce((s, t) => s + (t.size || 0), 0);
+  const capitalPct = settings.balance > 0 ? (totalDeployed / settings.balance) * 100 : 0;
+
+  // Capital at risk if all stopped out
+  let totalRisk = 0;
+  open.forEach(t => {
+    const units = t.entry > 0 && t.size > 0 ? t.size / t.entry : 0;
+    const loss = (t.entry - t.stop) * units;
+    if (loss > 0) totalRisk += loss;
+  });
+  const riskPct = settings.balance > 0 ? (totalRisk / settings.balance) * 100 : 0;
+
+  // Concentration
+  const bySetup = {};
+  const byCoin = {};
+  open.forEach(t => {
+    bySetup[t.setup] = (bySetup[t.setup] || 0) + 1;
+    byCoin[t.coin] = (byCoin[t.coin] || 0) + 1;
+  });
+
+  const warnings = [];
+  if (capitalPct > 50) warnings.push({ level: 'danger', msg: `⚠️ ${capitalPct.toFixed(0)}% of your account is deployed. Book Ch.6: keep this under 50% so a bad day doesn't wipe you out.` });
+  else if (capitalPct > 30) warnings.push({ level: 'warn', msg: `${capitalPct.toFixed(0)}% deployed. Consider keeping more dry powder.` });
+
+  if (riskPct > 8) warnings.push({ level: 'danger', msg: `⚠️ Total risk if everything stops out: ${riskPct.toFixed(1)}% of account. Book Ch.6 limit: 6%.` });
+  else if (riskPct > 5) warnings.push({ level: 'warn', msg: `Total risk if everything stops: ${riskPct.toFixed(1)}%. Getting high.` });
+
+  const dominantSetup = Object.entries(bySetup).sort((a,b) => b[1] - a[1])[0];
+  if (dominantSetup && dominantSetup[1] >= 3) {
+    warnings.push({ level: 'warn', msg: `All ${dominantSetup[1]} trades are "${dominantSetup[0]}" setups. If that setup fails, they all fail together.` });
   }
+
+  const dupCoin = Object.entries(byCoin).find(([_, n]) => n >= 2);
+  if (dupCoin) {
+    warnings.push({ level: 'danger', msg: `You have ${dupCoin[1]} open trades on ${dupCoin[0]}. That's one bet, not two.` });
+  }
+
+  // Market regime warning
+  const regime = computeMarketRegime();
+  if (regime && regime.state === 'bear' && open.length > 0) {
+    warnings.push({ level: 'warn', msg: `Market is bearish. Book Ch.10: signals fail more often in these conditions.` });
+  }
+
+  return { open, totalDeployed, capitalPct, totalRisk, riskPct, bySetup, byCoin, warnings };
+}
+
+function generateInsight(stats, setupG, coinG, portfolio, drawdown, calibration) {
   const lines = [];
-  lines.push(`Closed: <b>${stats.closed.length}</b> ${stats.closed.length < 20 ? '<span style="color:var(--muted)">— need 20 for reliable data</span>' : '<span class="good">— good sample size</span>'}`);
+
+  if (stats.closed.length === 0 && portfolio.open.length === 0) {
+    return `<div class="insight"><div class="title">🧠 Learning mode</div>Log at least <b>20 closed trades</b> before trusting patterns. Right now: <b>0</b>.</div>`;
+  }
+
+  lines.push(`Closed: <b>${stats.closed.length}</b> ${stats.closed.length < 20 ? '<span style="color:var(--muted)">— need 20 for reliable data (book Ch.12)</span>' : '<span class="good">— good sample size</span>'}`);
+
+  // Setup comparison
   const m = setupG['Momentum'], p = setupG['Pullback'];
   const wr = g => g ? (g.wins / (g.wins + g.losses) * 100) : 0;
   if (m && p) {
@@ -1537,22 +1654,84 @@ function generateInsight(stats, setupG, coinG) {
       lines.push(`<span class="hl">Your ${better} trades work better.</span> Momentum ${mwr.toFixed(0)}% · Pullback ${pwr.toFixed(0)}%`);
     }
   }
+
   if (stats.avgLoss !== 0) {
-    if (stats.rrRatio >= 2) lines.push(`R:R <span class="good">${stats.rrRatio.toFixed(2)}:1 — profitable</span>`);
+    if (stats.rrRatio >= 2) lines.push(`R:R <span class="good">${stats.rrRatio.toFixed(2)}:1 — profitable even with low win rate</span>`);
     else if (stats.rrRatio < 1) lines.push(`<span class="bad">Avg loss > avg win.</span> Tighten stops or aim higher.`);
   }
+
+  // Expectancy
   if (stats.expectancy > 0) lines.push(`Expectancy <span class="good">+$${stats.expectancy.toFixed(2)}/trade</span>`);
   else if (stats.expectancy < 0) lines.push(`Expectancy <span class="bad">-$${Math.abs(stats.expectancy).toFixed(2)}/trade</span>`);
+
+  // Calibration (Book Ch. 12: check your model)
+  if (calibration && calibration.samples >= 5) {
+    const d = calibration.delta;
+    if (d >= 8) lines.push(`📊 <span class="good">Calibration: you're beating your own estimates by ${d.toFixed(0)}%</span> — your picks are stronger than the model thinks.`);
+    else if (d <= -8) lines.push(`📊 <span class="bad">Calibration: actual win rate is ${Math.abs(d).toFixed(0)}% below estimate</span> — be more selective.`);
+    else lines.push(`📊 Calibration: actual matches estimate within ${Math.abs(d).toFixed(0)}% — model is honest.`);
+  }
+
+  // Streaks (Book Ch. 6)
+  if (drawdown.maxLossStreak >= 3) lines.push(`⚠️ Longest losing streak so far: <b>${drawdown.maxLossStreak}</b>. This is normal. Don't panic-increase size.`);
+  if (drawdown.maxWinStreak >= 4) lines.push(`🔥 Longest winning streak: <b>${drawdown.maxWinStreak}</b>. Book Ch.6: consider rebalancing after big runs.`);
+  if (drawdown.current <= -3) lines.push(`<span class="warn">You're on a ${Math.abs(drawdown.current)}-loss streak right now.</span> Consider a break.`);
+  if (drawdown.current >= 3) lines.push(`<span class="good">You're on a ${drawdown.current}-win streak.</span>`);
+
   return `<div class="insight"><div class="title">🧠 Insight</div>${lines.join('<br>')}</div>`;
 }
 
+function renderPortfolioPanel(trades) {
+  const panel = $('portfolioPanel');
+  const p = analyzePortfolio(trades);
+  const settings = loadSettings();
+
+  const capBarColor = p.capitalPct > 50 ? 'var(--red)' : p.capitalPct > 30 ? 'var(--amber)' : 'var(--green)';
+  const riskBarColor = p.riskPct > 8 ? 'var(--red)' : p.riskPct > 5 ? 'var(--amber)' : 'var(--green)';
+
+  let html = `
+    <div class="portfolio-panel">
+      <div class="title"><span>📊 Portfolio health</span><span style="font-weight:500;text-transform:none;letter-spacing:0">${p.open.length} open</span></div>
+      <div class="portfolio-row">
+        <span class="k">Capital deployed</span>
+        <span class="v">${money(p.totalDeployed)} / ${money(settings.balance)}</span>
+      </div>
+      <div class="portfolio-bar"><div class="portfolio-bar-fill" style="width:${Math.min(100, p.capitalPct)}%;background:${capBarColor}"></div></div>
+      <div class="portfolio-row" style="border-top:1px solid var(--border-soft);margin-top:6px;padding-top:10px">
+        <span class="k">Max risk if all stopped</span>
+        <span class="v" style="color:${riskBarColor}">${p.riskPct.toFixed(1)}% (${money(p.totalRisk)})</span>
+      </div>
+      <div class="portfolio-bar"><div class="portfolio-bar-fill" style="width:${Math.min(100, p.riskPct * 10)}%;background:${riskBarColor}"></div></div>
+  `;
+
+  if (p.warnings.length) {
+    p.warnings.forEach(w => {
+      html += `<div class="portfolio-warn ${w.level === 'danger' ? 'danger' : ''}">${w.msg}</div>`;
+    });
+  } else if (p.open.length > 0) {
+    html += `<div class="portfolio-warn" style="background:rgba(34,197,94,0.06);border-left-color:var(--green)">✅ Portfolio looks healthy. Keep risk per trade at 1–2%.</div>`;
+  } else {
+    html += `<div class="portfolio-warn" style="background:transparent;border-left-color:var(--border-soft);color:var(--muted)">No open trades. When you log one, risk metrics appear here.</div>`;
+  }
+
+  html += `</div>`;
+  panel.innerHTML = html;
+}
+
+/* ============================================================
+   JOURNAL RENDER
+============================================================ */
 function renderJournal() {
   const trades = loadTrades();
   const stats = computeStats(trades);
   const setupG = breakdownBy(trades, 'setup');
   const coinG = breakdownBy(trades, 'coin');
+  const drawdown = computeDrawdown(trades);
+  const calibration = computeCalibration(trades);
+  const portfolio = analyzePortfolio(trades);
 
-  $('journalInsight').innerHTML = generateInsight(stats, setupG, coinG);
+  renderPortfolioPanel(trades);
+  $('journalInsight').innerHTML = generateInsight(stats, setupG, coinG, portfolio, drawdown, calibration);
 
   $('journalStats').innerHTML = `
     <div class="stat"><div class="val">${trades.length}</div><div class="lbl">Trades</div></div>
@@ -1588,25 +1767,20 @@ function renderJournal() {
   if (closedCount > 0) {
     clearBtn.classList.remove('hidden');
     clearBtn.textContent = `🗑️ Clear ${closedCount} closed`;
-  } else {
-    clearBtn.classList.add('hidden');
-  }
+  } else clearBtn.classList.add('hidden');
 
   const bulkSlot = $('bulkConfirmSlot');
   if (bulkConfirmOpen && closedCount > 0) {
     bulkSlot.innerHTML = `
       <div class="bulk-confirm">
         <b>Delete all ${closedCount} closed trades?</b><br>
-        This removes every Win and Loss from the journal. Open trades are kept.
-        This cannot be undone.
+        This removes every Win and Loss. Open trades are kept. Cannot be undone.
         <div class="bulk-actions">
           <button class="ghost small bulk-cancel">Cancel</button>
           <button class="small bulk-confirm-yes" style="background:var(--red)">Yes, delete them</button>
         </div>
       </div>`;
-  } else {
-    bulkSlot.innerHTML = '';
-  }
+  } else bulkSlot.innerHTML = '';
 
   const listEl = $('journalList');
   if (!trades.length) {
@@ -1645,14 +1819,10 @@ function renderJournal() {
 
     let closeMethodHTML = '';
     if (isClosed && t.closeDate) {
-      let methodLabel = 'Closed manually';
-      let methodClass = 'manual';
+      let methodLabel = 'Closed manually'; let methodClass = 'manual';
       if (t.autoClosed === 'stop') { methodLabel = '🛑 Auto-closed at stop'; methodClass = 'auto-stop'; }
       else if (t.autoClosed === 'target') { methodLabel = '✅ Auto-closed at target'; methodClass = 'auto-target'; }
-      closeMethodHTML = `
-        <span class="lbl">Closed</span>
-        <span class="closed-method ${methodClass}">${methodLabel}</span>
-        · <span class="closed-time">${formatTime(t.closeDate)}</span><br>`;
+      closeMethodHTML = `<span class="lbl">Closed</span> <span class="closed-method ${methodClass}">${methodLabel}</span> · <span class="closed-time">${formatTime(t.closeDate)}</span><br>`;
     }
 
     const isClosing = closingTradeId === t.id;
@@ -1661,7 +1831,7 @@ function renderJournal() {
 
     return `
       <div class="trade ${nearClass} ${isEditing ? 'editing' : ''} ${isClosed ? 'closed' : ''}">
-        <button class="del" data-id="${t.id}" aria-label="Delete trade" ${isEditing ? 'style="display:none"' : ''}>✕</button>
+        <button class="del" data-id="${t.id}" aria-label="Delete" ${isEditing ? 'style="display:none"' : ''}>✕</button>
         <div class="row1">
           <div>
             <span class="pair">${esc(t.coin)}</span>
@@ -1689,30 +1859,21 @@ function renderJournal() {
         ${isEditing ? `
           <div class="edit-form">
             <div class="field-row">
-              <div><label>Coin</label>
-                <input type="text" class="edit-field" data-field="coin" autocapitalize="characters" value="${esc(editDraft.coin)}" /></div>
-              <div><label>Setup</label>
-                <select class="edit-field" data-field="setup">
+              <div><label>Coin</label><input type="text" class="edit-field" data-field="coin" autocapitalize="characters" value="${esc(editDraft.coin)}" /></div>
+              <div><label>Setup</label><select class="edit-field" data-field="setup">
                   <option value="Momentum" ${editDraft.setup === 'Momentum' ? 'selected' : ''}>🚀 Momentum</option>
                   <option value="Pullback" ${editDraft.setup === 'Pullback' ? 'selected' : ''}>📉 Pullback</option>
                 </select></div>
             </div>
             <div class="field-row">
-              <div><label>Entry</label>
-                <input type="number" step="any" class="edit-field" data-field="entry" value="${esc(editDraft.entry)}" /></div>
-              <div><label>Stop</label>
-                <input type="number" step="any" class="edit-field" data-field="stop" value="${esc(editDraft.stop)}" /></div>
+              <div><label>Entry</label><input type="number" step="any" class="edit-field" data-field="entry" value="${esc(editDraft.entry)}" /></div>
+              <div><label>Stop</label><input type="number" step="any" class="edit-field" data-field="stop" value="${esc(editDraft.stop)}" /></div>
             </div>
             <div class="field-row">
-              <div><label>Target</label>
-                <input type="number" step="any" class="edit-field" data-field="target" value="${esc(editDraft.target)}" /></div>
-              <div><label>Size (USD)</label>
-                <input type="number" step="any" class="edit-field" data-field="size" value="${esc(editDraft.size)}" /></div>
+              <div><label>Target</label><input type="number" step="any" class="edit-field" data-field="target" value="${esc(editDraft.target)}" /></div>
+              <div><label>Size (USD)</label><input type="number" step="any" class="edit-field" data-field="size" value="${esc(editDraft.size)}" /></div>
             </div>
-            <div class="field">
-              <label>Notes</label>
-              <textarea class="edit-field" data-field="notes" placeholder="Why this trade?">${esc(editDraft.notes)}</textarea>
-            </div>
+            <div class="field"><label>Notes</label><textarea class="edit-field" data-field="notes" placeholder="Why this trade?">${esc(editDraft.notes)}</textarea></div>
             <div class="form-actions">
               <button class="ghost small edit-cancel">Cancel</button>
               <button class="small edit-save" data-id="${t.id}">Save changes</button>
@@ -1722,9 +1883,7 @@ function renderJournal() {
         ${isClosing ? `
           <div class="close-form">
             <label>Exit price</label>
-            <input type="number" class="close-exit-input" step="any"
-              value="${esc(closingExitValue)}"
-              placeholder="${livePrice ? price(livePrice) : price(t.entry)}" />
+            <input type="number" class="close-exit-input" step="any" value="${esc(closingExitValue)}" placeholder="${livePrice ? price(livePrice) : price(t.entry)}" />
             <div class="form-actions">
               <button class="ghost small close-cancel">Cancel</button>
               <button class="small close-confirm" data-id="${t.id}">Confirm close</button>
@@ -1746,9 +1905,7 @@ function renderJournal() {
 ============================================================ */
 function updatePermStatus() {
   const el = $('permStatus');
-  if (!('Notification' in window)) {
-    el.textContent = 'Unsupported'; el.className = 'perm-pill perm-denied'; return;
-  }
+  if (!('Notification' in window)) { el.textContent = 'Unsupported'; el.className = 'perm-pill perm-denied'; return; }
   const p = Notification.permission;
   if (p === 'granted') { el.textContent = 'Granted'; el.className = 'perm-pill perm-granted'; }
   else if (p === 'denied') { el.textContent = 'Denied'; el.className = 'perm-pill perm-denied'; }
@@ -1757,10 +1914,7 @@ function updatePermStatus() {
 function renderAlertLog() {
   const log = loadAlertLog();
   const el = $('alertLog');
-  if (!log.length) {
-    el.innerHTML = '<div class="empty" style="padding:20px">No alerts yet.</div>';
-    return;
-  }
+  if (!log.length) { el.innerHTML = '<div class="empty" style="padding:20px">No alerts yet.</div>'; return; }
   el.innerHTML = log.map(a => `
     <div class="log-item ${a.type}">
       <div class="title">${esc(a.title)}</div>
@@ -1772,10 +1926,7 @@ function renderAlertsPanel() {
   const s = loadAlertSettings();
   ['enabled','sound','vibrate','notify','nearStop','nearTarget','onClose','onSetup'].forEach(k => {
     const sw = $('sw_' + k);
-    if (sw) {
-      sw.classList.toggle('on', !!s[k]);
-      sw.setAttribute('aria-checked', String(!!s[k]));
-    }
+    if (sw) { sw.classList.toggle('on', !!s[k]); sw.setAttribute('aria-checked', String(!!s[k])); }
   });
   $('nearThreshold').value = s.nearThreshold;
   updatePermStatus();
@@ -1799,10 +1950,7 @@ function calcRisk() {
   const stopPct = (perUnitRisk / entry) * 100;
   const position = riskAmount / perUnitRisk;
   const posValue = position * entry;
-  if (posValue > bal) {
-    out.innerHTML = `<span style="color:var(--red)">Stop too tight.</span><br>Would need ${money(posValue)} but account is ${money(bal)}.`;
-    return;
-  }
+  if (posValue > bal) { out.innerHTML = `<span style="color:var(--red)">Stop too tight.</span><br>Would need ${money(posValue)} but account is ${money(bal)}.`; return; }
   out.innerHTML = `
     Max loss <b>${money(riskAmount)}</b><br>
     Stop distance <b>${stopPct.toFixed(2)}%</b><br>
@@ -1820,13 +1968,11 @@ function syncAccountInputs() {
   $('cBalance').value = s.balance;
   $('cRisk').value = s.riskPct;
 }
-
 function switchView(view) {
   currentView = view;
   document.querySelectorAll('nav button').forEach(b => b.classList.toggle('active', b.dataset.view === view));
   document.querySelectorAll('.view').forEach(v => v.classList.toggle('active', v.id === 'view-' + view));
   window.scrollTo({ top: 0, behavior: 'smooth' });
-
   if (view === 'journal') { syncAccountInputs(); renderJournal(); }
   else if (view === 'alerts') renderAlertsPanel();
   else if (view === 'risk') { syncAccountInputs(); calcRisk(); }
@@ -1834,7 +1980,7 @@ function switchView(view) {
 }
 
 /* ============================================================
-   CHART / DETAIL
+   CHART / DETAIL VIEW
 ============================================================ */
 let currentChart = null;
 let currentChartSeries = null;
@@ -1853,55 +1999,37 @@ function pruneChartCache() {
   keys.sort((a, b) => chartCache[a].ts - chartCache[b].ts);
   keys.slice(0, keys.length - MAX).forEach(k => delete chartCache[k]);
 }
-
 function openCoinDetail(symbol, coinId) {
   const coin = findCoinLive(symbol, coinId);
   if (!coin) return;
-
   currentDetailSymbol = coin.symbol;
   currentDetailId = coin.id;
   currentPeriod = 7;
-
   $('dName').textContent = coin.name;
   $('dSymbol').textContent = coin.symbol.toUpperCase() + ' · #' + (coin.market_cap_rank ?? '—');
   $('dPrice').textContent = price(coin.current_price);
   const a = ch24(coin);
   $('dChange').textContent = (a >= 0 ? '+' : '') + a.toFixed(2) + '% (24h)';
   $('dChange').className = 'change ' + (a > 0 ? 'up' : a < 0 ? 'down' : 'flat');
-
-  document.querySelectorAll('#periodTabs button').forEach(b => {
-    b.classList.toggle('active', b.dataset.period === '7');
-  });
-
+  document.querySelectorAll('#periodTabs button').forEach(b => b.classList.toggle('active', b.dataset.period === '7'));
   document.querySelectorAll('nav button').forEach(b => b.classList.remove('active'));
   document.querySelectorAll('.view').forEach(v => v.classList.toggle('active', v.id === 'view-detail'));
   currentView = 'detail';
   window.scrollTo({ top: 0 });
-  try {
-    history.pushState({ detail: coin.symbol }, '', '#' + coin.symbol);
-    detailPushedState = true;
-  } catch (e) { detailPushedState = false; }
-
+  try { history.pushState({ detail: coin.symbol }, '', '#' + coin.symbol); detailPushedState = true; }
+  catch (e) { detailPushedState = false; }
   loadChart(coin, 7);
   renderDetailStats(coin);
 }
-
 async function loadChart(coin, days) {
   const myId = ++chartReqId;
   const statusEl = $('chartStatus');
   statusEl.textContent = 'Loading chart…';
   statusEl.style.display = 'flex';
-
   const cacheKey = coin.id + '_' + days;
   const cached = chartCache[cacheKey];
   const FIVE_MIN = 5 * 60 * 1000;
-
-  if (cached && Date.now() - cached.ts < FIVE_MIN) {
-    if (myId !== chartReqId) return;
-    renderChart(coin, cached.data);
-    return;
-  }
-
+  if (cached && Date.now() - cached.ts < FIVE_MIN) { if (myId !== chartReqId) return; renderChart(coin, cached.data); return; }
   try {
     const url = `https://api.coingecko.com/api/v3/coins/${coin.id}/market_chart?vs_currency=usd&days=${days}`;
     const res = await fetch(url);
@@ -1910,102 +2038,57 @@ async function loadChart(coin, days) {
     const json = await res.json();
     if (myId !== chartReqId) return;
     if (!json.prices || !json.prices.length) throw new Error('No data');
-
-    const series = json.prices.map(([ts, p]) => ({
-      time: Math.floor(ts / 1000),
-      value: p
-    }));
-
+    const series = json.prices.map(([ts, p]) => ({ time: Math.floor(ts / 1000), value: p }));
     chartCache[cacheKey] = { data: series, ts: Date.now() };
     pruneChartCache();
     if (myId !== chartReqId) return;
     renderChart(coin, series);
   } catch (e) {
     if (myId !== chartReqId) return;
-    console.error(e);
     statusEl.textContent = 'Could not load chart. Tap a period tab to retry.';
     statusEl.style.display = 'flex';
   }
 }
-
 function renderChart(coin, series) {
   const container = $('chartContainer');
   const statusEl = $('chartStatus');
   statusEl.style.display = 'none';
-
-  if (currentChart) {
-    try { currentChart.remove(); } catch(e) {}
-    currentChart = null;
-    currentChartSeries = null;
-  }
-
+  if (currentChart) { try { currentChart.remove(); } catch(e) {} currentChart = null; currentChartSeries = null; }
   if (typeof LightweightCharts === 'undefined') {
     statusEl.textContent = 'Chart library failed to load. Check your internet.';
     statusEl.style.display = 'flex';
     return;
   }
-
   const w = Math.max(280, container.clientWidth - 16);
   const h = 320;
-
   try {
     currentChart = LightweightCharts.createChart(container, {
       width: w, height: h,
-      layout: {
-        background: { color: '#131720' },
-        textColor: '#8a94a6',
-        fontSize: 11
-      },
-      grid: {
-        vertLines: { color: '#1a1f2b' },
-        horzLines: { color: '#1a1f2b' }
-      },
+      layout: { background: { color: '#131720' }, textColor: '#8a94a6', fontSize: 11 },
+      grid: { vertLines: { color: '#1a1f2b' }, horzLines: { color: '#1a1f2b' } },
       rightPriceScale: { borderColor: '#222838' },
       timeScale: { borderColor: '#222838', timeVisible: currentPeriod <= 7 }
     });
-
     currentChartSeries = currentChart.addAreaSeries({
-      lineColor: '#3b82f6',
-      topColor: 'rgba(59,130,246,0.35)',
-      bottomColor: 'rgba(59,130,246,0.02)',
-      lineWidth: 2
+      lineColor: '#3b82f6', topColor: 'rgba(59,130,246,0.35)', bottomColor: 'rgba(59,130,246,0.02)', lineWidth: 2
     });
-
     currentChartSeries.setData(series);
     currentChart.timeScale().fitContent();
   } catch (err) {
-    console.error('Chart error:', err);
     statusEl.textContent = 'Chart error: ' + (err.message || 'unknown');
     statusEl.style.display = 'flex';
-    if (currentChart) {
-      try { currentChart.remove(); } catch(e) {}
-      currentChart = null;
-    }
+    if (currentChart) { try { currentChart.remove(); } catch(e) {} currentChart = null; }
     return;
   }
-
   const trades = loadTrades().filter(t => t.coin === coin.symbol.toUpperCase() && t.status === 'open');
   const t = trades[0];
   const legendEl = $('chartLegend');
   legendEl.innerHTML = '';
-
   if (t) {
     try {
-      currentChartSeries.createPriceLine({
-        price: t.entry, color: '#3b82f6', lineWidth: 1,
-        lineStyle: LightweightCharts.LineStyle.Dashed,
-        axisLabelVisible: true, title: 'Entry'
-      });
-      currentChartSeries.createPriceLine({
-        price: t.stop, color: '#ef4444', lineWidth: 1,
-        lineStyle: LightweightCharts.LineStyle.Dashed,
-        axisLabelVisible: true, title: 'Stop'
-      });
-      currentChartSeries.createPriceLine({
-        price: t.target, color: '#22c55e', lineWidth: 1,
-        lineStyle: LightweightCharts.LineStyle.Dashed,
-        axisLabelVisible: true, title: 'Target'
-      });
+      currentChartSeries.createPriceLine({ price: t.entry, color: '#3b82f6', lineWidth: 1, lineStyle: LightweightCharts.LineStyle.Dashed, axisLabelVisible: true, title: 'Entry' });
+      currentChartSeries.createPriceLine({ price: t.stop, color: '#ef4444', lineWidth: 1, lineStyle: LightweightCharts.LineStyle.Dashed, axisLabelVisible: true, title: 'Stop' });
+      currentChartSeries.createPriceLine({ price: t.target, color: '#22c55e', lineWidth: 1, lineStyle: LightweightCharts.LineStyle.Dashed, axisLabelVisible: true, title: 'Target' });
     } catch (e) {}
     legendEl.innerHTML = `
       <div class="item"><span class="swatch" style="background:#3b82f6"></span>Entry ${price(t.entry)}</div>
@@ -2013,18 +2096,12 @@ function renderChart(coin, series) {
       <div class="item"><span class="swatch" style="background:#22c55e"></span>Target ${price(t.target)}</div>
     `;
   }
-
-  if (window._chartResizeHandler) {
-    window.removeEventListener('resize', window._chartResizeHandler);
-  }
+  if (window._chartResizeHandler) window.removeEventListener('resize', window._chartResizeHandler);
   window._chartResizeHandler = () => {
-    if (currentChart && container) {
-      try { currentChart.applyOptions({ width: Math.max(280, container.clientWidth - 16) }); } catch(e) {}
-    }
+    if (currentChart && container) { try { currentChart.applyOptions({ width: Math.max(280, container.clientWidth - 16) }); } catch(e) {} }
   };
   window.addEventListener('resize', window._chartResizeHandler);
 }
-
 function renderDetailStats(coin) {
   const s = winnerScore(coin);
   const chance = estimateWinChance(coin);
@@ -2033,12 +2110,14 @@ function renderDetailStats(coin) {
   const isPull = isPullback(coin);
   const stable = isStablecoin(coin);
   const ind = indicatorsCache[coin.id];
+  const parabolic = isParabolic(coin);
 
   const tags = [];
   if (stable) tags.push('<span class="tag stable">Stablecoin</span>');
   if (isMom) tags.push('<span class="tag momentum">Momentum</span>');
   if (isPull) tags.push('<span class="tag pullback">Pullback</span>');
-  if (ind && ind.momentum === 'strong') tags.push('<span class="tag momentum-strong">⚡ Strong Momentum</span>');
+  if (ind && ind.momentum === 'strong') tags.push('<span class="tag momentum-strong">⚡ Strong</span>');
+  if (parabolic) tags.push('<span class="tag parabolic">⚠️ Parabolic</span>');
   if (!stable && !isMom && !isPull) tags.push('<span class="tag open">No setup</span>');
 
   let trendBadge = '';
@@ -2052,73 +2131,48 @@ function renderDetailStats(coin) {
 
   const a = ch24(coin), w = ch7(coin), m = ch30(coin);
   const confCount = confluenceCount(coin);
+  const volText = ind && ind.dailyVol != null ? `~${ind.dailyVol.toFixed(1)}% / day` : '—';
 
   $('dStats').innerHTML = `
     <div class="block">
       <div style="margin-bottom:10px">${tags.join('')}${trendBadge}</div>
-      <div class="bd-row"><span class="k">24h change</span>
-        <span class="v ${a >= 0 ? 'up' : 'down'}">${a >= 0 ? '+' : ''}${a.toFixed(2)}%</span></div>
-      <div class="bd-row"><span class="k">7d change</span>
-        <span class="v ${w >= 0 ? 'up' : 'down'}">${w >= 0 ? '+' : ''}${w.toFixed(2)}%</span></div>
-      <div class="bd-row"><span class="k">30d change</span>
-        <span class="v ${m >= 0 ? 'up' : 'down'}">${m >= 0 ? '+' : ''}${m.toFixed(2)}%</span></div>
-      <div class="bd-row"><span class="k">Market cap</span>
-        <span class="v">${money(coin.market_cap)}</span></div>
-      <div class="bd-row"><span class="k">Volume (24h)</span>
-        <span class="v">${money(coin.total_volume)}</span></div>
-      <div class="bd-row"><span class="k">Confluence signals</span>
-        <span class="v" style="color:${confCount >= 3 ? 'var(--green)' : '#fbbf24'}">${confCount} of 4</span></div>
-      <div class="bd-row"><span class="k">Confluence score</span>
-        <span class="v" style="color:${scoreColor(s)}">${s} / 100</span></div>
-      <div class="bd-row"><span class="k">Estimated win chance</span>
-        <span class="v" style="color:${chanceColor(chance)}">${chance}%</span></div>
-      <div class="bd-row"><span class="k">Expected value / $1 risked</span>
-        <span class="v" style="color:${ev >= 0 ? 'var(--green)' : 'var(--red)'}">${ev >= 0 ? '+' : ''}$${ev.toFixed(2)}</span></div>
-    </div>
-  `;
+      <div class="bd-row"><span class="k">24h change</span><span class="v ${a >= 0 ? 'up' : 'down'}">${a >= 0 ? '+' : ''}${a.toFixed(2)}%</span></div>
+      <div class="bd-row"><span class="k">7d change</span><span class="v ${w >= 0 ? 'up' : 'down'}">${w >= 0 ? '+' : ''}${w.toFixed(2)}%</span></div>
+      <div class="bd-row"><span class="k">30d change</span><span class="v ${m >= 0 ? 'up' : 'down'}">${m >= 0 ? '+' : ''}${m.toFixed(2)}%</span></div>
+      <div class="bd-row"><span class="k">Daily volatility</span><span class="v">${volText}</span></div>
+      <div class="bd-row"><span class="k">Market cap</span><span class="v">${money(coin.market_cap)}</span></div>
+      <div class="bd-row"><span class="k">Volume (24h)</span><span class="v">${money(coin.total_volume)}</span></div>
+      <div class="bd-row"><span class="k">Confluence signals</span><span class="v" style="color:${confCount >= 3 ? 'var(--green)' : '#fbbf24'}">${confCount} of 4</span></div>
+      <div class="bd-row"><span class="k">Confluence score</span><span class="v" style="color:${scoreColor(s)}">${s} / 100</span></div>
+      <div class="bd-row"><span class="k">Estimated win chance</span><span class="v" style="color:${chanceColor(chance)}">${chance}%</span></div>
+      <div class="bd-row"><span class="k">Expected value / $1 risked</span><span class="v" style="color:${ev >= 0 ? 'var(--green)' : 'var(--red)'}">${ev >= 0 ? '+' : ''}$${ev.toFixed(2)}</span></div>
+    </div>`;
 }
-
 function cleanupDetailChart() {
-  if (currentChart) {
-    try { currentChart.remove(); } catch(e) {}
-    currentChart = null;
-    currentChartSeries = null;
-  }
-  currentDetailSymbol = null;
-  currentDetailId = null;
+  if (currentChart) { try { currentChart.remove(); } catch(e) {} currentChart = null; currentChartSeries = null; }
+  currentDetailSymbol = null; currentDetailId = null;
 }
-
 function exitDetail(to = 'scan') {
   if (!currentDetailSymbol) { switchView(to); return; }
   if (detailPushedState) {
-    leavingDetailTo = to;
-    detailPushedState = false;
+    leavingDetailTo = to; detailPushedState = false;
     try { history.back(); return; } catch (e) {}
   }
   cleanupDetailChart();
   switchView(to);
 }
 function closeCoinDetail() { exitDetail('scan'); }
-
 function openJournalForDetailCoin() {
   const sym = currentDetailSymbol;
   if (detailPushedState) {
-    leavingDetailTo = 'journal';
-    detailPushedState = false;
+    leavingDetailTo = 'journal'; detailPushedState = false;
     try { history.back(); } catch (e) {}
-    if (leavingDetailTo === 'journal' && currentDetailSymbol) {
-      cleanupDetailChart();
-      switchView('journal');
-    }
+    if (leavingDetailTo === 'journal' && currentDetailSymbol) { cleanupDetailChart(); switchView('journal'); }
     leavingDetailTo = null;
-  } else {
-    cleanupDetailChart();
-    switchView('journal');
-  }
+  } else { cleanupDetailChart(); switchView('journal'); }
   $('jCoin').value = sym || '';
   autoFillTrade();
 }
-
 document.querySelectorAll('#periodTabs button').forEach(b => {
   b.addEventListener('click', () => {
     document.querySelectorAll('#periodTabs button').forEach(x => x.classList.remove('active'));
@@ -2128,15 +2182,12 @@ document.querySelectorAll('#periodTabs button').forEach(b => {
     if (coin) loadChart(coin, currentPeriod);
   });
 });
-
 $('detailBackBtn').addEventListener('click', closeCoinDetail);
 $('dLogTradeBtn').addEventListener('click', openJournalForDetailCoin);
-
 $('coinList').addEventListener('click', e => {
   const card = e.target.closest('.coin-card');
   if (card && card.dataset.symbol) openCoinDetail(card.dataset.symbol, card.dataset.id || null);
 });
-
 window.addEventListener('popstate', () => {
   if (!currentDetailSymbol) return;
   cleanupDetailChart();
@@ -2151,46 +2202,32 @@ window.addEventListener('popstate', () => {
 document.querySelectorAll('nav button').forEach(b => {
   b.addEventListener('click', () => switchView(b.dataset.view));
 });
-
 document.querySelectorAll('.chip').forEach(c => {
   c.addEventListener('click', () => {
-    document.querySelectorAll('.chip').forEach(x => {
-      x.classList.remove('active');
-      x.setAttribute('aria-pressed', 'false');
-    });
-    c.classList.add('active');
-    c.setAttribute('aria-pressed', 'true');
+    document.querySelectorAll('.chip').forEach(x => { x.classList.remove('active'); x.setAttribute('aria-pressed', 'false'); });
+    c.classList.add('active'); c.setAttribute('aria-pressed', 'true');
     currentFilter = c.dataset.filter;
     renderCoinList();
   });
 });
-
 $('search').addEventListener('input', renderCoinList);
 $('refreshBtn').addEventListener('click', fetchCrypto);
-
 $('jCoin').addEventListener('input', autoFillTrade);
 $('jSetup').addEventListener('change', autoFillTrade);
 
 function onAccountInput() {
-  saveSettings({
-    balance: parseFloat($('jBalance').value) || 0,
-    riskPct: parseFloat($('jRiskPct').value) || 1
-  });
+  saveSettings({ balance: parseFloat($('jBalance').value) || 0, riskPct: parseFloat($('jRiskPct').value) || 1 });
   if ($('jCoin').value.trim()) autoFillTrade();
+  if (currentView === 'journal') renderPortfolioPanel(loadTrades());
 }
 $('jBalance').addEventListener('input', onAccountInput);
 $('jRiskPct').addEventListener('input', onAccountInput);
-
 function onRiskAccountInput() {
-  saveSettings({
-    balance: parseFloat($('cBalance').value) || 0,
-    riskPct: parseFloat($('cRisk').value) || 1
-  });
+  saveSettings({ balance: parseFloat($('cBalance').value) || 0, riskPct: parseFloat($('cRisk').value) || 1 });
   calcRisk();
 }
 $('cBalance').addEventListener('input', onRiskAccountInput);
 $('cRisk').addEventListener('input', onRiskAccountInput);
-
 $('jAddBtn').addEventListener('click', addTrade);
 
 $('clearClosedBtn').addEventListener('click', () => {
@@ -2199,47 +2236,34 @@ $('clearClosedBtn').addEventListener('click', () => {
   closingTradeId = null; deletingTradeId = null;
   renderJournal();
 });
-
 $('bulkConfirmSlot').addEventListener('click', e => {
   if (e.target.closest('.bulk-cancel')) { bulkConfirmOpen = false; renderJournal(); return; }
   if (e.target.closest('.bulk-confirm-yes')) { clearClosedTrades(); return; }
 });
-
 $('journalList').addEventListener('click', e => {
   const del = e.target.closest('.del');
   if (del) {
     const id = Number(del.dataset.id);
     deletingTradeId = deletingTradeId === id ? null : id;
-    closingTradeId = null;
-    editingTradeId = null; editDraft = null;
-    bulkConfirmOpen = false;
-    renderJournal();
-    return;
+    closingTradeId = null; editingTradeId = null; editDraft = null; bulkConfirmOpen = false;
+    renderJournal(); return;
   }
   const delCancel = e.target.closest('.del-cancel');
   if (delCancel) { deletingTradeId = null; renderJournal(); return; }
   const delYes = e.target.closest('.del-yes');
   if (delYes) { deleteTrade(Number(delYes.dataset.id)); return; }
-
   const closeBtn = e.target.closest('.close-btn');
   if (closeBtn) {
-    closingTradeId = Number(closeBtn.dataset.id);
-    closingExitValue = '';
-    deletingTradeId = null;
-    editingTradeId = null; editDraft = null;
-    bulkConfirmOpen = false;
+    closingTradeId = Number(closeBtn.dataset.id); closingExitValue = '';
+    deletingTradeId = null; editingTradeId = null; editDraft = null; bulkConfirmOpen = false;
     renderJournal();
-    setTimeout(() => {
-      const inp = document.querySelector('.close-exit-input');
-      if (inp) inp.focus();
-    }, 30);
+    setTimeout(() => { const inp = document.querySelector('.close-exit-input'); if (inp) inp.focus(); }, 30);
     return;
   }
   const closeCancel = e.target.closest('.close-cancel');
   if (closeCancel) { closingTradeId = null; closingExitValue = ''; renderJournal(); return; }
   const closeConfirm = e.target.closest('.close-confirm');
   if (closeConfirm) { closeTradeManual(Number(closeConfirm.dataset.id)); return; }
-
   const editBtn = e.target.closest('.edit-btn');
   if (editBtn) { beginEditTrade(Number(editBtn.dataset.id)); return; }
   const editCancel = e.target.closest('.edit-cancel');
@@ -2247,19 +2271,16 @@ $('journalList').addEventListener('click', e => {
   const editSave = e.target.closest('.edit-save');
   if (editSave) { saveEditedTrade(Number(editSave.dataset.id)); return; }
 });
-
 $('journalList').addEventListener('input', e => {
   const editInput = e.target.closest('.edit-field');
   if (editInput && editDraft) { editDraft[editInput.dataset.field] = editInput.value; return; }
   const closeInp = e.target.closest('.close-exit-input');
   if (closeInp) { closingExitValue = closeInp.value; closeInp.style.borderColor = ''; }
 });
-
 $('journalList').addEventListener('change', e => {
   const editInput = e.target.closest('.edit-field');
-  if (editInput && editDraft) { editDraft[editInput.dataset.field] = editInput.value; }
+  if (editInput && editDraft) editDraft[editInput.dataset.field] = editInput.value;
 });
-
 ['enabled','sound','vibrate','notify','nearStop','nearTarget','onClose','onSetup'].forEach(k => {
   const sw = $('sw_' + k);
   if (!sw) return;
@@ -2272,18 +2293,14 @@ $('journalList').addEventListener('change', e => {
     ensureAudio();
   };
   sw.addEventListener('click', toggle);
-  sw.addEventListener('keydown', e => {
-    if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); toggle(); }
-  });
+  sw.addEventListener('keydown', e => { if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); toggle(); } });
 });
-
 $('nearThreshold').addEventListener('input', () => {
   const raw = parseFloat($('nearThreshold').value);
   const s = loadAlertSettings();
   s.nearThreshold = isNaN(raw) ? 0.5 : Math.max(0, Math.min(5, raw));
   saveAlertSettings(s);
 });
-
 $('grantPermBtn').addEventListener('click', async () => {
   ensureAudio();
   if (!('Notification' in window)) { alert('Not supported on this browser.'); return; }
@@ -2293,19 +2310,11 @@ $('grantPermBtn').addEventListener('click', async () => {
     if (p === 'granted') pushNative('🔔 Alerts enabled', 'You will now receive trade alerts.', 'welcome');
   } catch (e) { alert('Error: ' + e.message); }
 });
-$('testAlertBtn').addEventListener('click', () => {
-  fireAlert('info', '🔔 Test alert', 'If you see this and hear a tone, alerts work.', 'test');
-});
-$('clearLogBtn').addEventListener('click', () => {
-  if (!confirm('Clear alert history?')) return;
-  saveAlertLog([]);
-  renderAlertLog();
-});
-
+$('testAlertBtn').addEventListener('click', () => { fireAlert('info', '🔔 Test alert', 'If you see this and hear a tone, alerts work.', 'test'); });
+$('clearLogBtn').addEventListener('click', () => { if (!confirm('Clear alert history?')) return; saveAlertLog([]); renderAlertLog(); });
 $('cCalcBtn').addEventListener('click', calcRisk);
 $('cEntry').addEventListener('input', calcRisk);
 $('cStop').addEventListener('input', calcRisk);
-
 document.body.addEventListener('touchstart', ensureAudio, { once: true });
 document.body.addEventListener('click', ensureAudio, { once: true });
 
