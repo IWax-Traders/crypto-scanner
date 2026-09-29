@@ -68,15 +68,34 @@
   }
   .coin-card.highlight { border-color: var(--blue); }
   .coin-card.parabolic { border-color: rgba(239,68,68,0.5); }
-  .coin-card .top { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; margin-bottom: 12px; }
+  .coin-card .top { display: flex; align-items: flex-start; gap: 10px; margin-bottom: 12px; }
+  .coin-card .info { flex: 1; min-width: 0; }
   .coin-card .name { font-size: 1rem; font-weight: 700; letter-spacing: -0.1px; }
   .coin-card .symbol { font-size: 0.75rem; color: var(--muted); margin-top: 2px; letter-spacing: 0.3px; }
-  .coin-card .right { text-align: right; }
+  .coin-card .right { text-align: right; flex-shrink: 0; }
   .coin-card .price { font-size: 1.15rem; font-weight: 700; letter-spacing: -0.2px; }
   .coin-card .change { font-size: 0.82rem; font-weight: 600; margin-top: 2px; }
   .up { color: var(--green); } .down { color: var(--red); } .flat { color: var(--muted); }
   .coin-card .metrics { display: flex; gap: 16px; font-size: 0.78rem; color: var(--muted); margin-bottom: 12px; flex-wrap: wrap; }
   .coin-card .metrics span { color: var(--text); font-weight: 600; }
+
+  /* Star button */
+  .star-btn {
+    width: 32px; height: 32px; padding: 0;
+    background: transparent; border: none;
+    color: var(--muted); font-size: 1.15rem; line-height: 1;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer; opacity: 0.7;
+    transition: opacity 0.15s, color 0.15s, transform 0.1s;
+    flex-shrink: 0; margin-top: -2px;
+    border-radius: 50%;
+    font-family: inherit;
+  }
+  .star-btn:active { transform: scale(0.85); }
+  .star-btn.watched {
+    opacity: 1; color: #fbbf24;
+    text-shadow: 0 0 8px rgba(251,191,36,0.35);
+  }
 
   .sig-row { display: flex; gap: 8px; margin-bottom: 10px; align-items: center; flex-wrap: wrap; }
   .sig-badge { font-size: 0.72rem; padding: 4px 10px; border-radius: 6px; font-weight: 700; letter-spacing: 0.2px; }
@@ -219,10 +238,11 @@
   .preview b { color: var(--text); }
   .preview .green { color: var(--green); font-weight: 600; }
   .preview .red { color: var(--red); font-weight: 600; }
-  .trade { background: var(--surface); border: 1px solid var(--border-soft); border-radius: var(--radius); padding: 14px; margin-bottom: 10px; position: relative; }
+  .trade { background: var(--surface); border: 1px solid var(--border-soft); border-radius: var(--radius); padding: 14px; margin-bottom: 10px; position: relative; cursor: pointer; transition: border-color 0.15s; }
+  .trade:active { border-color: var(--blue); }
   .trade.near-stop { border-color: rgba(239,68,68,0.4); }
   .trade.near-target { border-color: rgba(34,197,94,0.4); }
-  .trade.editing { border-color: var(--blue); }
+  .trade.editing { border-color: var(--blue); cursor: default; }
   .trade.closed { opacity: 0.85; }
   .trade .row1 { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; margin-bottom: 8px; }
   .trade .pair { font-size: 0.95rem; font-weight: 700; margin-right: 6px; }
@@ -239,12 +259,12 @@
   .trade .actions button { font-size: 0.75rem; padding: 7px 14px; }
   .trade .del { position: absolute; top: 8px; right: 8px; background: transparent; border: none; color: var(--dim); font-size: 14px; padding: 6px; width: auto; opacity: 0.5; }
   .trade .del:active { opacity: 1; color: var(--red); }
-  .close-form, .edit-form { margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--border-soft); }
+  .close-form, .edit-form { margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--border-soft); cursor: default; }
   .close-form label, .edit-form label { margin-bottom: 8px; }
   .close-form input { margin-bottom: 8px; }
   .form-actions { display: flex; gap: 8px; }
   .form-actions button { flex: 1; }
-  .del-confirm { margin-top: 10px; padding: 10px 12px; background: rgba(239,68,68,0.08); border-radius: 8px; display: flex; align-items: center; gap: 8px; font-size: 0.78rem; color: var(--muted); }
+  .del-confirm { margin-top: 10px; padding: 10px 12px; background: rgba(239,68,68,0.08); border-radius: 8px; display: flex; align-items: center; gap: 8px; font-size: 0.78rem; color: var(--muted); cursor: default; }
   .del-confirm span { flex: 1; }
   .del-confirm button { padding: 6px 10px; font-size: 0.72rem; }
   .bulk-confirm { margin: 10px 0 0; padding: 12px; background: rgba(239,68,68,0.08); border: 1px solid rgba(239,68,68,0.3); border-radius: var(--radius-sm); font-size: 0.82rem; color: var(--text); line-height: 1.5; }
@@ -354,6 +374,7 @@
       </div>
     </div>
     <div class="chips" id="filterChips">
+      <button class="chip" data-filter="watchlist" aria-pressed="false">⭐ Watchlist</button>
       <button class="chip active" data-filter="winners" aria-pressed="true">🏆 Winners</button>
       <button class="chip" data-filter="momentum" aria-pressed="false">🚀 Momentum</button>
       <button class="chip" data-filter="pullback" aria-pressed="false">📉 Pullback</button>
@@ -594,12 +615,9 @@
 <script>
 /* ============================================================
    DATA SOURCE: BINANCE
-   Using /api/v3/ticker/24hr as primary (no API key, generous
-   rate limits). Market cap rank is approximated by volume rank.
 ============================================================ */
 const BINANCE_TICKER_URL = 'https://api.binance.com/api/v3/ticker/24hr';
 
-// Name map for common USDT pairs. Unknown symbols fall back to their ticker.
 const COIN_NAMES = {
   BTC:'Bitcoin', ETH:'Ethereum', BNB:'BNB', SOL:'Solana', XRP:'XRP',
   ADA:'Cardano', DOGE:'Dogecoin', AVAX:'Avalanche', DOT:'Polkadot',
@@ -640,13 +658,12 @@ const COIN_NAMES = {
   AI:'Sleepless AI', OCEAN:'Ocean Protocol', AGIX:'SingularityNET'
 };
 
-// Symbols we always exclude (stablecoins and duplicates)
 const EXCLUDED_BASES = new Set([
   'USDC','FDUSD','TUSD','BUSD','USDP','DAI','USDD','USTC','PYUSD',
   'WBTC','WBETH','BETH','STETH','RETH','CBETH','WSTETH','SFRXETH',
   'USD1','EURI','AEUR','EUR','GBP','TRY','BRL','ARS','ZAR','RUB',
   'UAH','PLN','RON','CZK','JPY','IDRT','BIDR','VAI','BVND','NGN',
-  'BKRW','BIDR','PAXG','XAUT'
+  'BKRW','PAXG','XAUT'
 ]);
 
 /* ============================================================
@@ -660,6 +677,7 @@ const SEEN_SETUPS_KEY = 'crypto_seen_setups_v1';
 const COOLDOWN_KEY = 'crypto_cooldown_v1';
 const STREAK_ACK_KEY = 'crypto_streak_ack_v1';
 const TIMEFRAME_KEY = 'crypto_timeframe_v1';
+const WATCHLIST_KEY = 'crypto_watchlist_v1';
 
 const ICON_DATA_URL = 'data:image/svg+xml,' + encodeURIComponent(
   '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 192 192">' +
@@ -735,7 +753,23 @@ function ch7(c) { return c.price_change_percentage_7d_in_currency ?? 0; }
 function ch30(c) { return c.price_change_percentage_30d_in_currency ?? 0; }
 function has7d(c) { return c.price_change_percentage_7d_in_currency != null; }
 function has30d(c) { return c.price_change_percentage_30d_in_currency != null; }
-function volRatio(c) { return c.total_volume ? Math.min(c.total_volume / 5e8, 1) : 0; }
+
+/* ============================================================
+   WATCHLIST
+============================================================ */
+function loadWatchlist() {
+  const w = safeGet(WATCHLIST_KEY, []);
+  return Array.isArray(w) ? w : [];
+}
+function saveWatchlist(w) { safeSet(WATCHLIST_KEY, w); }
+function isWatched(symbol) { return loadWatchlist().includes(String(symbol).toLowerCase()); }
+function toggleWatch(symbol) {
+  const s = String(symbol).toLowerCase();
+  const w = loadWatchlist();
+  const idx = w.indexOf(s);
+  if (idx >= 0) { w.splice(idx, 1); saveWatchlist(w); return false; }
+  w.push(s); saveWatchlist(w); return true;
+}
 
 /* ============================================================
    COOLDOWN
@@ -949,7 +983,7 @@ function renderVerdict() {
 }
 
 /* ============================================================
-   TECHNICAL INDICATORS (Binance klines)
+   TECHNICAL INDICATORS
 ============================================================ */
 const indicatorsCache = {};
 const indicatorInFlight = new Set();
@@ -1021,24 +1055,16 @@ async function fetchBinanceKlines(symbol, interval = '1h', limit = 200) {
   if (!res.ok) throw new Error('Binance ' + res.status);
   return await res.json();
 }
-
-// Fetches daily klines for 7d/30d changes, plus timeframe klines for indicators
 async function computeIndicators(coin, timeframe) {
   const symbol = coin.symbol.toUpperCase() + 'USDT';
   try {
-    // Always get daily klines for 7d/30d changes
     const dailyKlines = await fetchBinanceKlines(symbol, '1d', 200);
     if (!Array.isArray(dailyKlines) || dailyKlines.length < 31) throw new Error('Not enough daily candles');
     const dailyCloses = dailyKlines.map(k => parseFloat(k[4]));
     const n = dailyCloses.length;
-    const change7d = n >= 8
-      ? ((dailyCloses[n-1] - dailyCloses[n-8]) / dailyCloses[n-8]) * 100
-      : null;
-    const change30d = n >= 31
-      ? ((dailyCloses[n-1] - dailyCloses[n-31]) / dailyCloses[n-31]) * 100
-      : null;
+    const change7d = n >= 8 ? ((dailyCloses[n-1] - dailyCloses[n-8]) / dailyCloses[n-8]) * 100 : null;
+    const change30d = n >= 31 ? ((dailyCloses[n-1] - dailyCloses[n-31]) / dailyCloses[n-31]) * 100 : null;
 
-    // Now choose candle set for indicators based on timeframe
     let closes, volumes;
     if (timeframe === '1d') {
       closes = dailyCloses;
@@ -1051,7 +1077,6 @@ async function computeIndicators(coin, timeframe) {
     }
 
     const price = closes[closes.length - 1];
-
     const s50 = sma(closes, 50);
     const s200 = sma(closes, 200);
     let trend = 'neutral';
@@ -1115,8 +1140,6 @@ async function enrichCoins(coins) {
 
   const CONCURRENCY = 6;
   let cursor = 0;
-  let rerenderQueued = false;
-
   async function worker() {
     while (cursor < todo.length) {
       const coin = todo[cursor++];
@@ -1124,12 +1147,8 @@ async function enrichCoins(coins) {
       const ind = await computeIndicators(coin, tf);
       indicatorsCache[key] = ind;
       indicatorInFlight.delete(key);
-
-      // Write 7d/30d changes back to the coin object so display + scoring can use them
       if (ind.change7d != null) coin.price_change_percentage_7d_in_currency = ind.change7d;
       if (ind.change30d != null) coin.price_change_percentage_30d_in_currency = ind.change30d;
-
-      rerenderQueued = true;
       if (currentView === 'scan') {
         clearTimeout(enrichTimer);
         enrichTimer = setTimeout(renderCoinList, 300);
@@ -1175,7 +1194,6 @@ function qualityScore35(c) {
   const mean = (r1 + r7 + r30) / 3;
   const mad = (Math.abs(r1 - mean) + Math.abs(r7 - mean) + Math.abs(r30 - mean)) / 3;
   const consistencyScore = (1 / (1 + mad / 3)) * 25 * 0.35;
-  // Volume-based liquidity proxy (no market cap available from Binance)
   const liqScore = Math.min(1, c.total_volume / 3e8) * 25 * 0.35;
   const rank = c.market_cap_rank ?? 500;
   const capScore = Math.max(0, 20 - Math.log10(rank + 1) * 4) * 0.35;
@@ -1394,6 +1412,7 @@ function coinCardHTML(c, highlight) {
   const ev = expectedValue(c);
   const ind = getInd(c);
   const parabolic = isParabolic(c);
+  const watched = isWatched(c.symbol);
 
   let setupBadge = '';
   const isMom = isMomentumBurst(c);
@@ -1426,7 +1445,6 @@ function coinCardHTML(c, highlight) {
                  : ind && ind.volume === 'low' ? 'var(--red)'
                  : 'var(--text)';
 
-  // Display helpers — show "—" until 7d/30d data is enriched
   const w7Display = has7d(c) ? `${w >= 0 ? '+' : ''}${w.toFixed(1)}%` : '—';
   const w7Class = has7d(c) ? (w >= 0 ? 'up' : 'down') : 'flat';
   const m30Display = has30d(c) ? `${m >= 0 ? '+' : ''}${m.toFixed(0)}%` : '—';
@@ -1449,7 +1467,12 @@ function coinCardHTML(c, highlight) {
          style="cursor:pointer">
       ${parabolicStrip}
       <div class="top">
-        <div>
+        <button class="star-btn ${watched ? 'watched' : ''}"
+                data-symbol="${esc(c.symbol)}"
+                aria-label="${watched ? 'Remove from watchlist' : 'Add to watchlist'}">
+          ${watched ? '★' : '☆'}
+        </button>
+        <div class="info">
           <div class="name">${esc(c.name)}</div>
           <div class="symbol">${esc(c.symbol.toUpperCase())} · #${c.market_cap_rank ?? '—'}</div>
         </div>
@@ -1484,10 +1507,20 @@ function coinCardHTML(c, highlight) {
 ============================================================ */
 function renderCoinList() {
   renderVerdict();
+
+  // Update watchlist chip label
+  const wl = loadWatchlist();
+  const chipEl = document.querySelector('[data-filter="watchlist"]');
+  if (chipEl) {
+    chipEl.textContent = wl.length ? `⭐ Watchlist (${wl.length})` : '⭐ Watchlist';
+  }
+
   const q = $('search').value.trim().toLowerCase();
   let list;
 
-  if (currentFilter === 'momentum') list = allCoins.filter(isMomentumBurst);
+  if (currentFilter === 'watchlist') {
+    list = allCoins.filter(c => wl.includes(c.symbol.toLowerCase()));
+  } else if (currentFilter === 'momentum') list = allCoins.filter(isMomentumBurst);
   else if (currentFilter === 'pullback') list = allCoins.filter(isPullback);
   else if (currentFilter === 'winners') list = allCoins.filter(c => isMomentumBurst(c) || isPullback(c));
   else if (currentFilter === 'confluence') list = allCoins.filter(c => !isStablecoin(c) && confluenceCount(c) >= 3);
@@ -1510,10 +1543,16 @@ function renderCoinList() {
       <div class="banner" style="border-left-color:var(--green);margin-bottom:16px">
         <b>✨ Confluence filter.</b> Only 3+ of: <span style="color:#60a5fa">Trend UP</span> · <span style="color:#fb923c">Strong Momentum</span> · <span style="color:var(--green)">High Volume</span> · <span style="color:var(--green)">Green EV</span>.
       </div>`;
+  } else if (currentFilter === 'watchlist') {
+    explainer = `
+      <div class="banner" style="border-left-color:#fbbf24;margin-bottom:16px">
+        <b>⭐ Your watchlist.</b> Tap the ☆ on any coin card to add or remove it here. Saved on this device.
+      </div>`;
   }
 
   if (!list.length) {
     const msgs = {
+      watchlist: ['⭐', 'No coins watched yet.', 'Tap the ☆ on any coin card to add it here. Your watchlist is your personal shortlist — 5–10 coins you understand well is ideal.'],
       winners: ['🏆', 'No qualified setups right now.', 'This is the correct result most of the time. Wait for the setup.'],
       momentum: ['🚀', 'No momentum setups.', 'Needs a coin up 3–8% today with a positive 7-day trend.'],
       pullback: ['📉', 'No pullback setups.', 'Needs a coin up 12%+ this week that dipped 2–5% today.'],
@@ -1535,7 +1574,7 @@ function renderCoinList() {
 }
 
 /* ============================================================
-   FETCH — BINANCE TICKER
+   FETCH
 ============================================================ */
 let pollTimer = null;
 let failStreak = 0;
@@ -1543,25 +1582,16 @@ let firstFetchDone = false;
 let fetching = false;
 
 function transformBinanceTickers(tickers) {
-  // Filter to USDT pairs
   let list = tickers.filter(t => t.symbol.endsWith('USDT'));
-
-  // Exclude leveraged tokens and stablecoin pairs
   list = list.filter(t => {
-    const base = t.symbol.slice(0, -4); // strip "USDT"
+    const base = t.symbol.slice(0, -4);
     if (!base) return false;
     if (base.endsWith('UP') || base.endsWith('DOWN') || base.endsWith('BULL') || base.endsWith('BEAR')) return false;
     if (EXCLUDED_BASES.has(base)) return false;
     return true;
   });
-
-  // Sort by quote volume descending (USDT volume)
   list.sort((a, b) => parseFloat(b.quoteVolume) - parseFloat(a.quoteVolume));
-
-  // Take top 100 by volume
   list = list.slice(0, 100);
-
-  // Transform to internal shape
   return list.map((t, i) => {
     const base = t.symbol.slice(0, -4);
     const lower = base.toLowerCase();
@@ -1570,13 +1600,12 @@ function transformBinanceTickers(tickers) {
       symbol: lower,
       name: COIN_NAMES[base] || base,
       current_price: parseFloat(t.lastPrice),
-      market_cap: parseFloat(t.quoteVolume) * 30,   // rough proxy
-      market_cap_rank: i + 1,                        // volume-based rank
+      market_cap: parseFloat(t.quoteVolume) * 30,
+      market_cap_rank: i + 1,
       total_volume: parseFloat(t.quoteVolume),
       high_24h: parseFloat(t.highPrice),
       low_24h: parseFloat(t.lowPrice),
       price_change_percentage_24h: parseFloat(t.priceChangePercent)
-      // 7d and 30d left undefined — populated during enrichment
     };
   });
 }
@@ -1591,22 +1620,16 @@ async function fetchCrypto() {
     if (!res.ok) throw new Error('HTTP ' + res.status);
     const raw = await res.json();
     if (!Array.isArray(raw) || !raw.length) throw new Error('Bad payload');
-
     const transformed = transformBinanceTickers(raw);
     if (!transformed.length) throw new Error('No USDT pairs found');
 
-    // Preserve already-enriched 7d/30d changes across refreshes
     const prevMap = {};
     allCoins.forEach(c => { prevMap[c.id] = c; });
     transformed.forEach(c => {
       const prev = prevMap[c.id];
       if (prev) {
-        if (prev.price_change_percentage_7d_in_currency != null) {
-          c.price_change_percentage_7d_in_currency = prev.price_change_percentage_7d_in_currency;
-        }
-        if (prev.price_change_percentage_30d_in_currency != null) {
-          c.price_change_percentage_30d_in_currency = prev.price_change_percentage_30d_in_currency;
-        }
+        if (prev.price_change_percentage_7d_in_currency != null) c.price_change_percentage_7d_in_currency = prev.price_change_percentage_7d_in_currency;
+        if (prev.price_change_percentage_30d_in_currency != null) c.price_change_percentage_30d_in_currency = prev.price_change_percentage_30d_in_currency;
       }
     });
     allCoins = transformed;
@@ -1734,7 +1757,7 @@ function checkNewSetups({ silent = false } = {}) {
 }
 
 /* ============================================================
-   COOLDOWN: streak + render
+   COOLDOWN
 ============================================================ */
 function checkStreakCooldown() {
   const trades = loadTrades();
@@ -2256,7 +2279,8 @@ function renderJournal() {
     const isEditing = editingTradeId === t.id;
 
     return `
-      <div class="trade ${nearClass} ${isEditing ? 'editing' : ''} ${isClosed ? 'closed' : ''}">
+      <div class="trade ${nearClass} ${isEditing ? 'editing' : ''} ${isClosed ? 'closed' : ''}"
+           data-id="${t.id}" data-symbol="${esc(t.coin)}">
         <button class="del" data-id="${t.id}" aria-label="Delete" ${isEditing ? 'style="display:none"' : ''}>✕</button>
         <div class="row1">
           <div>
@@ -2447,6 +2471,43 @@ function openCoinDetail(symbol, coinId) {
   loadChart(coin, 7);
   renderDetailStats(coin);
 }
+
+async function openCoinFromJournal(symbol, coinId) {
+  let coin = findCoinLive(symbol, coinId);
+  if (!coin) {
+    // Fetch on demand from Binance
+    showBanner(`⏳ Loading ${symbol.toUpperCase()}…`, 'info');
+    try {
+      const binanceSymbol = symbol.toUpperCase() + 'USDT';
+      const res = await fetch(`https://api.binance.com/api/v3/ticker/24hr?symbol=${binanceSymbol}`);
+      if (res.ok) {
+        const t = await res.json();
+        if (t && t.symbol) {
+          const base = t.symbol.slice(0, -4);
+          coin = {
+            id: base.toLowerCase(),
+            symbol: base.toLowerCase(),
+            name: COIN_NAMES[base] || base,
+            current_price: parseFloat(t.lastPrice),
+            market_cap: parseFloat(t.quoteVolume) * 30,
+            market_cap_rank: 999,
+            total_volume: parseFloat(t.quoteVolume),
+            high_24h: parseFloat(t.highPrice),
+            low_24h: parseFloat(t.lowPrice),
+            price_change_percentage_24h: parseFloat(t.priceChangePercent)
+          };
+          allCoins.push(coin);
+        }
+      }
+    } catch (e) {}
+  }
+  if (!coin) {
+    showBanner(`⚠️ ${symbol.toUpperCase()} not found on Binance`, 'warn');
+    return;
+  }
+  openCoinDetail(coin.symbol, coin.id);
+}
+
 async function loadChart(coin, days) {
   const myId = ++chartReqId;
   const statusEl = $('chartStatus');
@@ -2457,7 +2518,6 @@ async function loadChart(coin, days) {
   const FIVE_MIN = 5 * 60 * 1000;
   if (cached && Date.now() - cached.ts < FIVE_MIN) { if (myId !== chartReqId) return; renderChart(coin, cached.data); return; }
   try {
-    // Binance klines instead of CoinGecko
     const symbol = coin.symbol.toUpperCase() + 'USDT';
     let interval = '1d';
     if (days <= 1) interval = '5m';
@@ -2468,11 +2528,7 @@ async function loadChart(coin, days) {
     const klines = await fetchBinanceKlines(symbol, interval, limit);
     if (myId !== chartReqId) return;
     if (!Array.isArray(klines) || !klines.length) throw new Error('No data');
-    const series = klines.map(k => ({
-      time: Math.floor(parseInt(k[0]) / 1000),
-      value: parseFloat(k[4])
-    }));
-    // Deduplicate times (Binance sometimes returns duplicates near open candle)
+    const series = klines.map(k => ({ time: Math.floor(parseInt(k[0]) / 1000), value: parseFloat(k[4]) }));
     const seen = new Set();
     const clean = [];
     series.forEach(p => { if (!seen.has(p.time)) { seen.add(p.time); clean.push(p); } });
@@ -2625,10 +2681,34 @@ document.querySelectorAll('#periodTabs button').forEach(b => {
 });
 $('detailBackBtn').addEventListener('click', closeCoinDetail);
 $('dLogTradeBtn').addEventListener('click', openJournalForDetailCoin);
+
+// Coin list click: handles star taps AND opening coin detail
 $('coinList').addEventListener('click', e => {
+  // Star button
+  const star = e.target.closest('.star-btn');
+  if (star) {
+    e.stopPropagation();
+    const sym = star.dataset.symbol;
+    const nowWatched = toggleWatch(sym);
+    star.classList.toggle('watched', nowWatched);
+    star.textContent = nowWatched ? '★' : '☆';
+    star.setAttribute('aria-label', nowWatched ? 'Remove from watchlist' : 'Add to watchlist');
+    showBanner(nowWatched ? `⭐ ${sym.toUpperCase()} added to watchlist` : `Removed ${sym.toUpperCase()}`, 'info');
+    if (currentFilter === 'watchlist' && !nowWatched) {
+      renderCoinList();
+    } else {
+      // Update chip count
+      const wl = loadWatchlist();
+      const chipEl = document.querySelector('[data-filter="watchlist"]');
+      if (chipEl) chipEl.textContent = wl.length ? `⭐ Watchlist (${wl.length})` : '⭐ Watchlist';
+    }
+    return;
+  }
+  // Coin card → open detail
   const card = e.target.closest('.coin-card');
   if (card && card.dataset.symbol) openCoinDetail(card.dataset.symbol, card.dataset.id || null);
 });
+
 window.addEventListener('popstate', () => {
   if (!currentDetailSymbol) return;
   cleanupDetailChart();
@@ -2700,7 +2780,8 @@ $('exportJournalBtn').addEventListener('click', () => {
       exportedAt: new Date().toISOString(),
       trades: loadTrades(),
       settings: loadSettings(),
-      alertSettings: loadAlertSettings()
+      alertSettings: loadAlertSettings(),
+      watchlist: loadWatchlist()
     };
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
@@ -2733,6 +2814,7 @@ $('importFileInput').addEventListener('change', async (e) => {
     safeSet(TRADES_KEY, data.trades);
     if (data.settings) saveSettings(data.settings);
     if (data.alertSettings) saveAlertSettings(data.alertSettings);
+    if (Array.isArray(data.watchlist)) saveWatchlist(data.watchlist);
     syncAccountInputs();
     renderJournal();
     showBanner(`✅ Imported ${count} trade${count !== 1 ? 's' : ''}`, 'info');
@@ -2779,7 +2861,15 @@ $('bulkConfirmSlot').addEventListener('click', e => {
   if (e.target.closest('.bulk-cancel')) { bulkConfirmOpen = false; renderJournal(); return; }
   if (e.target.closest('.bulk-confirm-yes')) { clearClosedTrades(); return; }
 });
+
+// Interactive target check for trade card tap-to-detail
+function isInteractiveTarget(el) {
+  return !!el.closest('button, input, textarea, select, a, .actions, .close-form, .edit-form, .del-confirm');
+}
+
+// Journal list: buttons first, then tap-to-detail
 $('journalList').addEventListener('click', e => {
+  // All existing button handling
   const del = e.target.closest('.del');
   if (del) {
     const id = Number(del.dataset.id);
@@ -2809,7 +2899,19 @@ $('journalList').addEventListener('click', e => {
   if (editCancel) { cancelEditTrade(); return; }
   const editSave = e.target.closest('.edit-save');
   if (editSave) { saveEditedTrade(Number(editSave.dataset.id)); return; }
+
+  // If nothing above matched, check for tap-to-detail
+  if (isInteractiveTarget(e.target)) return;
+  if (editingTradeId || closingTradeId || deletingTradeId) return;
+
+  const tradeItem = e.target.closest('.trade');
+  if (tradeItem) {
+    const id = Number(tradeItem.dataset.id);
+    const t = loadTrades().find(x => x.id === id);
+    if (t) openCoinFromJournal(t.coin, t.coinId);
+  }
 });
+
 $('journalList').addEventListener('input', e => {
   const editInput = e.target.closest('.edit-field');
   if (editInput && editDraft) { editDraft[editInput.dataset.field] = editInput.value; return; }
