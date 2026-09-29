@@ -78,24 +78,12 @@
   .coin-card .metrics { display: flex; gap: 16px; font-size: 0.78rem; color: var(--muted); margin-bottom: 12px; flex-wrap: wrap; }
   .coin-card .metrics span { color: var(--text); font-weight: 600; }
 
-  .sig-row {
-    display: flex; gap: 8px; margin-bottom: 10px;
-    align-items: center; flex-wrap: wrap;
-  }
-  .sig-badge {
-    font-size: 0.72rem; padding: 4px 10px; border-radius: 6px;
-    font-weight: 700; letter-spacing: 0.2px;
-  }
+  .sig-row { display: flex; gap: 8px; margin-bottom: 10px; align-items: center; flex-wrap: wrap; }
+  .sig-badge { font-size: 0.72rem; padding: 4px 10px; border-radius: 6px; font-weight: 700; letter-spacing: 0.2px; }
   .sig-badge.momentum { background: rgba(245,158,11,0.14); color: #fbbf24; }
-  .sig-badge.momentum-strong {
-    background: rgba(249,115,22,0.22); color: #fb923c;
-    box-shadow: 0 0 10px rgba(251,146,60,0.2);
-  }
+  .sig-badge.momentum-strong { background: rgba(249,115,22,0.22); color: #fb923c; box-shadow: 0 0 10px rgba(251,146,60,0.2); }
   .sig-badge.pullback { background: rgba(59,130,246,0.14); color: #60a5fa; }
-  .trend-pill {
-    font-size: 0.68rem; padding: 3px 8px; border-radius: 5px;
-    font-weight: 700; letter-spacing: 0.3px; opacity: 0.85;
-  }
+  .trend-pill { font-size: 0.68rem; padding: 3px 8px; border-radius: 5px; font-weight: 700; letter-spacing: 0.3px; opacity: 0.85; }
   .trend-pill.up { background: rgba(34,197,94,0.12); color: #4ade80; }
   .trend-pill.down { background: rgba(239,68,68,0.12); color: #f87171; }
   .trend-pill.neutral { background: rgba(138,148,166,0.12); color: #8a94a6; }
@@ -141,9 +129,6 @@
   }
   .banner b { color: var(--text); }
 
-  /* ============================================================
-     TODAY'S VERDICT CARD
-  ============================================================ */
   .verdict-card {
     border-radius: var(--radius);
     margin-bottom: 14px;
@@ -163,63 +148,25 @@
     cursor: pointer;
     user-select: none;
   }
-  .verdict-icon {
-    font-size: 1.9rem; line-height: 1; flex-shrink: 0;
-  }
+  .verdict-icon { font-size: 1.9rem; line-height: 1; flex-shrink: 0; }
   .verdict-body { flex: 1; min-width: 0; }
-  .verdict-title {
-    font-size: 1rem; font-weight: 800;
-    letter-spacing: -0.2px; margin-bottom: 2px;
-  }
+  .verdict-title { font-size: 1rem; font-weight: 800; letter-spacing: -0.2px; margin-bottom: 2px; }
   .verdict-card.green .verdict-title { color: #4ade80; }
   .verdict-card.yellow .verdict-title { color: #fbbf24; }
   .verdict-card.red .verdict-title { color: #f87171; }
   .verdict-card.loading .verdict-title { color: var(--muted); }
-  .verdict-sub {
-    font-size: 0.76rem; color: var(--muted); line-height: 1.45;
-  }
-  .verdict-chevron {
-    font-size: 0.85rem; color: var(--muted); flex-shrink: 0;
-    transition: transform 0.2s;
-  }
+  .verdict-sub { font-size: 0.76rem; color: var(--muted); line-height: 1.45; }
+  .verdict-chevron { font-size: 0.85rem; color: var(--muted); flex-shrink: 0; transition: transform 0.2s; }
   .verdict-card.expanded .verdict-chevron { transform: rotate(180deg); }
 
-  .verdict-reasons {
-    display: none;
-    padding: 0 16px 14px;
-    border-top: 1px solid rgba(255,255,255,0.05);
-  }
-  .verdict-card.expanded .verdict-reasons {
-    display: block;
-    padding-top: 12px;
-  }
-  .verdict-reason {
-    display: flex; align-items: flex-start; gap: 8px;
-    padding: 6px 0;
-    font-size: 0.78rem;
-    line-height: 1.5;
-    color: #c8d0dc;
-  }
-  .verdict-reason .r-icon {
-    flex-shrink: 0; font-size: 0.85rem; width: 16px;
-    text-align: center;
-  }
-  .verdict-reason.good .r-icon { color: var(--green); }
-  .verdict-reason.warn .r-icon { color: var(--amber); }
-  .verdict-reason.bad .r-icon { color: var(--red); }
-  .verdict-reason.info .r-icon { color: #60a5fa; }
+  .verdict-reasons { display: none; padding: 0 16px 14px; border-top: 1px solid rgba(255,255,255,0.05); }
+  .verdict-card.expanded .verdict-reasons { display: block; padding-top: 12px; }
+  .verdict-reason { display: flex; align-items: flex-start; gap: 8px; padding: 6px 0; font-size: 0.78rem; line-height: 1.5; color: #c8d0dc; }
+  .verdict-reason .r-icon { flex-shrink: 0; font-size: 0.85rem; width: 16px; text-align: center; }
   .verdict-reason .r-text { flex: 1; min-width: 0; }
   .verdict-reason .r-text b { color: var(--text); }
+  .verdict-note { margin-top: 10px; font-size: 0.68rem; color: var(--dim); font-style: italic; text-align: center; }
 
-  .verdict-note {
-    margin-top: 10px;
-    font-size: 0.68rem;
-    color: var(--dim);
-    font-style: italic;
-    text-align: center;
-  }
-
-  /* Market regime */
   .market-banner {
     display: flex; align-items: center; gap: 12px;
     padding: 12px 14px; border-radius: var(--radius-sm);
@@ -236,21 +183,10 @@
   .market-banner.bear .title { color: #f87171; }
   .market-banner.neutral .title { color: #fbbf24; }
 
-  .tf-row {
-    display: flex; justify-content: space-between; align-items: center;
-    margin-bottom: 10px;
-  }
+  .tf-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
   .tf-label { font-size: 0.75rem; color: var(--muted); }
-  .tf-toggle {
-    display: inline-flex; background: var(--surface);
-    border: 1px solid var(--border); border-radius: 8px; overflow: hidden;
-  }
-  .tf-btn {
-    padding: 6px 14px; font-size: 0.75rem; font-weight: 700;
-    background: transparent; color: var(--muted); border: none;
-    cursor: pointer; letter-spacing: 0.3px;
-    font-family: inherit;
-  }
+  .tf-toggle { display: inline-flex; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+  .tf-btn { padding: 6px 14px; font-size: 0.75rem; font-weight: 700; background: transparent; color: var(--muted); border: none; cursor: pointer; letter-spacing: 0.3px; font-family: inherit; }
   .tf-btn.active { background: var(--blue); color: #fff; }
 
   .section-title { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px; color: var(--dim); margin: 22px 0 10px; }
@@ -388,17 +324,8 @@
   .legend { display: flex; gap: 14px; font-size: 0.72rem; color: var(--muted); margin-bottom: 12px; flex-wrap: wrap; }
   .legend .item { display: flex; align-items: center; gap: 5px; }
   .legend .swatch { width: 12px; height: 3px; border-radius: 2px; }
-
-  .modal-overlay {
-    position: fixed; inset: 0; background: rgba(0,0,0,0.75);
-    display: flex; align-items: center; justify-content: center;
-    z-index: 10000; padding: 20px;
-  }
-  .modal-content {
-    background: var(--surface); border: 1px solid var(--border);
-    border-radius: var(--radius); padding: 20px;
-    max-width: 400px; width: 100%;
-  }
+  .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.75); display: flex; align-items: center; justify-content: center; z-index: 10000; padding: 20px; }
+  .modal-content { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px; max-width: 400px; width: 100%; }
   .modal-content h3 { margin: 0 0 8px; font-size: 1rem; }
 </style>
 </head>
@@ -666,13 +593,65 @@
 
 <script>
 /* ============================================================
-   CONFIG + STATE
+   DATA SOURCE: BINANCE
+   Using /api/v3/ticker/24hr as primary (no API key, generous
+   rate limits). Market cap rank is approximated by volume rank.
 ============================================================ */
-const API_URL =
-  'https://api.coingecko.com/api/v3/coins/markets' +
-  '?vs_currency=usd&order=market_cap_desc&per_page=100&page=1' +
-  '&sparkline=false&price_change_percentage=24h,7d,30d';
+const BINANCE_TICKER_URL = 'https://api.binance.com/api/v3/ticker/24hr';
 
+// Name map for common USDT pairs. Unknown symbols fall back to their ticker.
+const COIN_NAMES = {
+  BTC:'Bitcoin', ETH:'Ethereum', BNB:'BNB', SOL:'Solana', XRP:'XRP',
+  ADA:'Cardano', DOGE:'Dogecoin', AVAX:'Avalanche', DOT:'Polkadot',
+  LINK:'Chainlink', TRX:'TRON', MATIC:'Polygon', SHIB:'Shiba Inu',
+  LTC:'Litecoin', BCH:'Bitcoin Cash', UNI:'Uniswap', ATOM:'Cosmos',
+  XLM:'Stellar', ETC:'Ethereum Classic', FIL:'Filecoin', APT:'Aptos',
+  ARB:'Arbitrum', OP:'Optimism', NEAR:'NEAR Protocol', INJ:'Injective',
+  SUI:'Sui', SEI:'Sei', TIA:'Celestia', IMX:'Immutable', HBAR:'Hedera',
+  VET:'VeChain', ICP:'Internet Computer', ALGO:'Algorand', FTM:'Fantom',
+  SAND:'The Sandbox', MANA:'Decentraland', AXS:'Axie Infinity',
+  GALA:'Gala', APE:'ApeCoin', GRT:'The Graph', EOS:'EOS', AAVE:'Aave',
+  MKR:'Maker', SNX:'Synthetix', CRV:'Curve DAO', LDO:'Lido DAO',
+  RPL:'Rocket Pool', COMP:'Compound', SUSHI:'Sushi', CAKE:'PancakeSwap',
+  YFI:'yearn.finance', '1INCH':'1inch', ENJ:'Enjin Coin', CHZ:'Chiliz',
+  ZIL:'Zilliqa', IOTA:'IOTA', EGLD:'MultiversX', FLOW:'Flow',
+  ROSE:'Oasis Network', KSM:'Kusama', XTZ:'Tezos', NEO:'Neo',
+  QNT:'Quant', WAVES:'Waves', MINA:'Mina Protocol', LRC:'Loopring',
+  STX:'Stacks', RNDR:'Render', FET:'Fetch.ai', WLD:'Worldcoin',
+  PEPE:'Pepe', FLOKI:'Floki', BONK:'Bonk', WIF:'dogwifhat', ORDI:'ORDI',
+  JUP:'Jupiter', PYTH:'Pyth Network', JTO:'Jito', STRK:'Starknet',
+  ZK:'zkSync', MANTA:'Manta Network', DYM:'Dymension', ALT:'AltLayer',
+  PIXEL:'Pixels', PORTAL:'Portal', AEVO:'Aevo', ETHFI:'Ether.fi',
+  ENA:'Ethena', OMNI:'Omni Network', SAGA:'Saga', TNSR:'Tensor',
+  REZ:'Renzo', BOME:'Book of Meme', NOT:'Notcoin', IO:'io.net',
+  ZRO:'LayerZero', BLAST:'Blast', ZETA:'ZetaChain', DYDX:'dYdX',
+  GMX:'GMX', PENDLE:'Pendle', CFX:'Conflux', AR:'Arweave', KAS:'Kaspa',
+  TAO:'Bittensor', THETA:'Theta Network', KAVA:'Kava', BAND:'Band Protocol',
+  API3:'API3', NMR:'Numeraire', BAL:'Balancer', UMA:'UMA',
+  KNC:'Kyber Network', ZRX:'0x Protocol', BAT:'Basic Attention',
+  DASH:'Dash', ZEC:'Zcash', XMR:'Monero', DCR:'Decred', RVN:'Ravencoin',
+  DGB:'DigiByte', SC:'Siacoin', ONT:'Ontology', ICX:'ICON', ARK:'Ark',
+  STEEM:'Steem', HIVE:'Hive', LSK:'Lisk', REN:'Ren', STORJ:'Storj',
+  ANKR:'Ankr', CELO:'Celo', ONE:'Harmony', COTI:'COTI', CTSI:'Cartesi',
+  DENT:'Dent', HOT:'Holo', IOTX:'IoTeX', NKN:'NKN', OGN:'Origin Protocol',
+  RSR:'Reserve Rights', AUDIO:'Audius', CVC:'Civic', MASK:'Mask Network',
+  DODO:'DODO', BNT:'Bancor', TRB:'Tellor', ILV:'Illuvium', MAGIC:'Magic',
+  BLUR:'Blur', XAI:'Xai', MEME:'Memecoin', ACE:'Fusionist', NFP:'NFPrompt',
+  AI:'Sleepless AI', OCEAN:'Ocean Protocol', AGIX:'SingularityNET'
+};
+
+// Symbols we always exclude (stablecoins and duplicates)
+const EXCLUDED_BASES = new Set([
+  'USDC','FDUSD','TUSD','BUSD','USDP','DAI','USDD','USTC','PYUSD',
+  'WBTC','WBETH','BETH','STETH','RETH','CBETH','WSTETH','SFRXETH',
+  'USD1','EURI','AEUR','EUR','GBP','TRY','BRL','ARS','ZAR','RUB',
+  'UAH','PLN','RON','CZK','JPY','IDRT','BIDR','VAI','BVND','NGN',
+  'BKRW','BIDR','PAXG','XAUT'
+]);
+
+/* ============================================================
+   STATE
+============================================================ */
 const TRADES_KEY = 'crypto_journal_v2';
 const SETTINGS_KEY = 'crypto_settings_v1';
 const ALERT_SETTINGS_KEY = 'crypto_alert_settings_v1';
@@ -752,16 +731,16 @@ function formatTime(iso) {
   } catch (e) { return '—'; }
 }
 function ch24(c) { return c.price_change_percentage_24h ?? 0; }
-function ch7(c) { return c.price_change_percentage_7d_in_currency ?? c.price_change_percentage_7d ?? 0; }
-function ch30(c) { return c.price_change_percentage_30d_in_currency ?? c.price_change_percentage_30d ?? 0; }
-function volRatio(c) { return c.market_cap ? c.total_volume / c.market_cap : 0; }
+function ch7(c) { return c.price_change_percentage_7d_in_currency ?? 0; }
+function ch30(c) { return c.price_change_percentage_30d_in_currency ?? 0; }
+function has7d(c) { return c.price_change_percentage_7d_in_currency != null; }
+function has30d(c) { return c.price_change_percentage_30d_in_currency != null; }
+function volRatio(c) { return c.total_volume ? Math.min(c.total_volume / 5e8, 1) : 0; }
 
 /* ============================================================
-   COOLDOWN SYSTEM
+   COOLDOWN
 ============================================================ */
-function loadCooldown() {
-  return safeGet(COOLDOWN_KEY, { active: false, until: null, reason: null });
-}
+function loadCooldown() { return safeGet(COOLDOWN_KEY, { active: false, until: null, reason: null }); }
 function saveCooldown(c) { safeSet(COOLDOWN_KEY, c); }
 function isCooldownActive() {
   const c = loadCooldown();
@@ -776,9 +755,7 @@ function activateCooldown(hours, reason) {
   const until = Date.now() + hours * 60 * 60 * 1000;
   saveCooldown({ active: true, until, reason });
 }
-function clearCooldown() {
-  saveCooldown({ active: false, until: null, reason: null });
-}
+function clearCooldown() { saveCooldown({ active: false, until: null, reason: null }); }
 function cooldownTimeLeft() {
   const c = loadCooldown();
   if (!c.active || !c.until) return 0;
@@ -834,8 +811,6 @@ function renderMarketBanner() {
 
 /* ============================================================
    TODAY'S VERDICT
-   Reads market + your portfolio + your recent trades and tells
-   you plainly: should you trade today?
 ============================================================ */
 function tradesLoggedToday() {
   const trades = loadTrades();
@@ -846,8 +821,7 @@ function tradesLoggedToday() {
 function computeVerdict() {
   if (!allCoins.length) {
     return {
-      level: 'loading',
-      icon: '⏳',
+      level: 'loading', icon: '⏳',
       title: 'Loading market data…',
       sub: 'Verdict will appear once prices load.',
       reasons: []
@@ -857,7 +831,6 @@ function computeVerdict() {
   const regime = computeMarketRegime();
   const trades = loadTrades();
   const open = trades.filter(t => t.status === 'open');
-  const settings = loadSettings();
   const dd = computeDrawdown(trades);
   const portfolio = analyzePortfolio(trades);
 
@@ -865,13 +838,11 @@ function computeVerdict() {
   let stops = 0;
   let cautions = 0;
 
-  // --- STOP 1: Cooldown active ---
   if (isCooldownActive()) {
     stops++;
     reasons.push({ level: 'bad', text: '<b>You\'re on a cooldown.</b> Respect it. Book Ch.6: emotional trading after losses is how accounts die.' });
   }
 
-  // --- STOP 2: Market is bearish ---
   if (regime && regime.state === 'bear') {
     stops++;
     reasons.push({ level: 'bad', text: `<b>Market is bearish.</b> BTC ${regime.btc7.toFixed(1)}% on the week, only ${regime.breadth.toFixed(0)}% of top 30 green. Book Ch.10: signals fail in bad weather.` });
@@ -881,37 +852,33 @@ function computeVerdict() {
     reasons.push({ level: 'info', text: `<b>Market is neutral.</b> BTC ${regime.btc7 >= 0 ? '+' : ''}${regime.btc7.toFixed(1)}% this week. Quality setups only.` });
   }
 
-  // --- STOP 3: Too many open trades ---
   if (open.length >= 2) {
     stops++;
     reasons.push({ level: 'bad', text: `<b>You already have ${open.length} open trades.</b> Book Ch.6: don't stack positions. Close or manage what's open first.` });
   } else if (open.length === 1) {
     cautions++;
-    reasons.push({ level: 'warn', text: `<b>One open trade.</b> Fine, but only add another if it's a different setup and coin.` });
+    reasons.push({ level: 'warn', text: '<b>One open trade.</b> Fine, but only add another if it\'s a different setup and coin.' });
   } else {
     reasons.push({ level: 'good', text: '<b>No open trades.</b> Clean slate.' });
   }
 
-  // --- STOP 4: Already traded today ---
   const todayCount = tradesLoggedToday();
   if (todayCount >= 1) {
     stops++;
-    reasons.push({ level: 'bad', text: `<b>You've already logged ${todayCount} trade${todayCount !== 1 ? 's' : ''} today.</b> Book Ch.10: overtrading is a beginner's biggest leak.` });
+    reasons.push({ level: 'bad', text: `<b>You've already logged ${todayCount} trade${todayCount !== 1 ? 's' : ''} today.</b> Book Ch.10: overtrading is a beginner\'s biggest leak.` });
   } else {
     reasons.push({ level: 'good', text: '<b>No trades logged today.</b> Fresh mind.' });
   }
 
-  // --- STOP 5: Active losing streak ---
   if (dd.current <= -2) {
     stops++;
     reasons.push({ level: 'bad', text: `<b>You're on a ${Math.abs(dd.current)}-loss streak right now.</b> Book Ch.6: wait for the streak to break before sizing up.` });
   } else if (dd.current >= 2) {
-    reasons.push({ level: 'good', text: `<b>On a ${dd.current}-win streak.</b> Ride it, but don't let it make you reckless.` });
-  } else if (dd.current === 0 || dd.current === -1 || dd.current === 1) {
+    reasons.push({ level: 'good', text: `<b>On a ${dd.current}-win streak.</b> Ride it, but don\'t let it make you reckless.` });
+  } else {
     reasons.push({ level: 'info', text: '<b>No active losing streak.</b>' });
   }
 
-  // --- STOP 6: Capital already deployed ---
   if (portfolio.capitalPct > 50) {
     stops++;
     reasons.push({ level: 'bad', text: `<b>${portfolio.capitalPct.toFixed(0)}% of your account is already deployed.</b> Book Ch.6: keep dry powder for the good setups.` });
@@ -922,14 +889,12 @@ function computeVerdict() {
     reasons.push({ level: 'good', text: `<b>Only ${portfolio.capitalPct.toFixed(0)}% of capital deployed.</b> Plenty of room.` });
   }
 
-  // --- STOP 7: Late night trading ---
   const hour = new Date().getHours();
   if (hour >= 23 || hour < 6) {
     cautions++;
     reasons.push({ level: 'warn', text: `<b>It's late (${hour}:00).</b> Trading tired is a known killer. Consider waiting until morning.` });
   }
 
-  // --- Combine into verdict ---
   let level, icon, title, sub;
   if (stops >= 2) {
     level = 'red'; icon = '🛑';
@@ -984,7 +949,7 @@ function renderVerdict() {
 }
 
 /* ============================================================
-   TECHNICAL INDICATORS
+   TECHNICAL INDICATORS (Binance klines)
 ============================================================ */
 const indicatorsCache = {};
 const indicatorInFlight = new Set();
@@ -1056,14 +1021,35 @@ async function fetchBinanceKlines(symbol, interval = '1h', limit = 200) {
   if (!res.ok) throw new Error('Binance ' + res.status);
   return await res.json();
 }
+
+// Fetches daily klines for 7d/30d changes, plus timeframe klines for indicators
 async function computeIndicators(coin, timeframe) {
   const symbol = coin.symbol.toUpperCase() + 'USDT';
-  const interval = timeframe === '1d' ? '1d' : '1h';
   try {
-    const klines = await fetchBinanceKlines(symbol, interval, 200);
-    if (!Array.isArray(klines) || klines.length < 30) throw new Error('Not enough candles');
-    const closes = klines.map(k => parseFloat(k[4]));
-    const volumes = klines.map(k => parseFloat(k[5]));
+    // Always get daily klines for 7d/30d changes
+    const dailyKlines = await fetchBinanceKlines(symbol, '1d', 200);
+    if (!Array.isArray(dailyKlines) || dailyKlines.length < 31) throw new Error('Not enough daily candles');
+    const dailyCloses = dailyKlines.map(k => parseFloat(k[4]));
+    const n = dailyCloses.length;
+    const change7d = n >= 8
+      ? ((dailyCloses[n-1] - dailyCloses[n-8]) / dailyCloses[n-8]) * 100
+      : null;
+    const change30d = n >= 31
+      ? ((dailyCloses[n-1] - dailyCloses[n-31]) / dailyCloses[n-31]) * 100
+      : null;
+
+    // Now choose candle set for indicators based on timeframe
+    let closes, volumes;
+    if (timeframe === '1d') {
+      closes = dailyCloses;
+      volumes = dailyKlines.map(k => parseFloat(k[5]));
+    } else {
+      const hKlines = await fetchBinanceKlines(symbol, '1h', 200);
+      if (!Array.isArray(hKlines) || hKlines.length < 30) throw new Error('Not enough hourly candles');
+      closes = hKlines.map(k => parseFloat(k[4]));
+      volumes = hKlines.map(k => parseFloat(k[5]));
+    }
+
     const price = closes[closes.length - 1];
 
     const s50 = sma(closes, 50);
@@ -1107,11 +1093,12 @@ async function computeIndicators(coin, timeframe) {
       else volatility = 'high';
     }
 
-    return { trend, momentum, volume, volatility, dailyVol, timeframe, ts: Date.now() };
+    return { trend, momentum, volume, volatility, dailyVol, timeframe, change7d, change30d, ts: Date.now() };
   } catch (e) {
     return { trend: 'neutral', momentum: 'neutral', volume: 'neutral', volatility: 'unknown', dailyVol: null, timeframe, ts: Date.now(), error: true };
   }
 }
+
 async function enrichCoins(coins) {
   const tf = currentTimeframe;
   const STALE = 10 * 60 * 1000;
@@ -1128,6 +1115,8 @@ async function enrichCoins(coins) {
 
   const CONCURRENCY = 6;
   let cursor = 0;
+  let rerenderQueued = false;
+
   async function worker() {
     while (cursor < todo.length) {
       const coin = todo[cursor++];
@@ -1135,6 +1124,12 @@ async function enrichCoins(coins) {
       const ind = await computeIndicators(coin, tf);
       indicatorsCache[key] = ind;
       indicatorInFlight.delete(key);
+
+      // Write 7d/30d changes back to the coin object so display + scoring can use them
+      if (ind.change7d != null) coin.price_change_percentage_7d_in_currency = ind.change7d;
+      if (ind.change30d != null) coin.price_change_percentage_30d_in_currency = ind.change30d;
+
+      rerenderQueued = true;
       if (currentView === 'scan') {
         clearTimeout(enrichTimer);
         enrichTimer = setTimeout(renderCoinList, 300);
@@ -1155,7 +1150,7 @@ function isStablecoin(c) {
   return p >= 0.95 && p <= 1.05 && a < 1.0 && w < 2.5 && m < 4.0;
 }
 function isMomentumBurst(c) {
-  return ch24(c) >= 3 && ch24(c) <= 8 && ch7(c) > 0 && volRatio(c) >= 0.03;
+  return ch24(c) >= 3 && ch24(c) <= 8 && ch7(c) > 0 && c.total_volume >= 5e6;
 }
 function isPullback(c) {
   return ch7(c) >= 12 && ch24(c) <= -2 && ch24(c) >= -5.5 && ch30(c) > -10;
@@ -1180,7 +1175,8 @@ function qualityScore35(c) {
   const mean = (r1 + r7 + r30) / 3;
   const mad = (Math.abs(r1 - mean) + Math.abs(r7 - mean) + Math.abs(r30 - mean)) / 3;
   const consistencyScore = (1 / (1 + mad / 3)) * 25 * 0.35;
-  const liqScore = Math.tanh(volRatio(c) / 0.05) * 25 * 0.35;
+  // Volume-based liquidity proxy (no market cap available from Binance)
+  const liqScore = Math.min(1, c.total_volume / 3e8) * 25 * 0.35;
   const rank = c.market_cap_rank ?? 500;
   const capScore = Math.max(0, 20 - Math.log10(rank + 1) * 4) * 0.35;
   return trendScore + consistencyScore + liqScore + capScore;
@@ -1232,8 +1228,8 @@ function estimateWinChance(c) {
   else if (isMom) baseP = 0.28;
   let logOdds = Math.log(baseP / (1 - baseP));
   logOdds += ((winnerScore(c) - 50) / 50) * 0.8;
-  const v = volRatio(c);
-  logOdds += Math.max(-0.6, Math.min(0.6, (v - 0.05) * 10));
+  const vol = Math.min(1, c.total_volume / 3e8);
+  logOdds += Math.max(-0.6, Math.min(0.6, (vol - 0.5) * 1.2));
   const a = ch24(c), w = ch7(c), m = ch30(c);
   if (a > 0 && w > 0) logOdds += 0.3;
   if (w > 0 && m > 0) logOdds += 0.3;
@@ -1430,6 +1426,12 @@ function coinCardHTML(c, highlight) {
                  : ind && ind.volume === 'low' ? 'var(--red)'
                  : 'var(--text)';
 
+  // Display helpers — show "—" until 7d/30d data is enriched
+  const w7Display = has7d(c) ? `${w >= 0 ? '+' : ''}${w.toFixed(1)}%` : '—';
+  const w7Class = has7d(c) ? (w >= 0 ? 'up' : 'down') : 'flat';
+  const m30Display = has30d(c) ? `${m >= 0 ? '+' : ''}${m.toFixed(0)}%` : '—';
+  const m30Class = has30d(c) ? (m >= 0 ? 'up' : 'down') : 'flat';
+
   const parabolicStrip = parabolic ? `
     <div class="parabolic-strip">
       ⚠️ Up ${Math.max(ch24(c), ch7(c)).toFixed(0)}% — book Ch.10 warns these reverse hard
@@ -1465,8 +1467,8 @@ function coinCardHTML(c, highlight) {
       ${chanceBlock}
 
       <div class="metrics">
-        <div>7d <span class="${w >= 0 ? 'up' : 'down'}">${w >= 0 ? '+' : ''}${w.toFixed(1)}%</span></div>
-        <div>30d <span class="${m >= 0 ? 'up' : 'down'}">${m >= 0 ? '+' : ''}${m.toFixed(0)}%</span></div>
+        <div>7d <span class="${w7Class}">${w7Display}</span></div>
+        <div>30d <span class="${m30Class}">${m30Display}</span></div>
         <div>Vol <span style="color:${volColor}">${money(c.total_volume)}</span>${volIcon ? ' ' + volIcon : ''}</div>
       </div>
 
@@ -1533,12 +1535,51 @@ function renderCoinList() {
 }
 
 /* ============================================================
-   FETCH
+   FETCH — BINANCE TICKER
 ============================================================ */
 let pollTimer = null;
 let failStreak = 0;
 let firstFetchDone = false;
 let fetching = false;
+
+function transformBinanceTickers(tickers) {
+  // Filter to USDT pairs
+  let list = tickers.filter(t => t.symbol.endsWith('USDT'));
+
+  // Exclude leveraged tokens and stablecoin pairs
+  list = list.filter(t => {
+    const base = t.symbol.slice(0, -4); // strip "USDT"
+    if (!base) return false;
+    if (base.endsWith('UP') || base.endsWith('DOWN') || base.endsWith('BULL') || base.endsWith('BEAR')) return false;
+    if (EXCLUDED_BASES.has(base)) return false;
+    return true;
+  });
+
+  // Sort by quote volume descending (USDT volume)
+  list.sort((a, b) => parseFloat(b.quoteVolume) - parseFloat(a.quoteVolume));
+
+  // Take top 100 by volume
+  list = list.slice(0, 100);
+
+  // Transform to internal shape
+  return list.map((t, i) => {
+    const base = t.symbol.slice(0, -4);
+    const lower = base.toLowerCase();
+    return {
+      id: lower,
+      symbol: lower,
+      name: COIN_NAMES[base] || base,
+      current_price: parseFloat(t.lastPrice),
+      market_cap: parseFloat(t.quoteVolume) * 30,   // rough proxy
+      market_cap_rank: i + 1,                        // volume-based rank
+      total_volume: parseFloat(t.quoteVolume),
+      high_24h: parseFloat(t.highPrice),
+      low_24h: parseFloat(t.lowPrice),
+      price_change_percentage_24h: parseFloat(t.priceChangePercent)
+      // 7d and 30d left undefined — populated during enrichment
+    };
+  });
+}
 
 async function fetchCrypto() {
   if (fetching) return;
@@ -1546,11 +1587,30 @@ async function fetchCrypto() {
   const btn = $('refreshBtn');
   btn.classList.add('spin'); btn.disabled = true;
   try {
-    const res = await fetch(API_URL);
+    const res = await fetch(BINANCE_TICKER_URL);
     if (!res.ok) throw new Error('HTTP ' + res.status);
-    const data = await res.json();
-    if (!Array.isArray(data) || !data.length) throw new Error('Bad payload');
-    allCoins = data;
+    const raw = await res.json();
+    if (!Array.isArray(raw) || !raw.length) throw new Error('Bad payload');
+
+    const transformed = transformBinanceTickers(raw);
+    if (!transformed.length) throw new Error('No USDT pairs found');
+
+    // Preserve already-enriched 7d/30d changes across refreshes
+    const prevMap = {};
+    allCoins.forEach(c => { prevMap[c.id] = c; });
+    transformed.forEach(c => {
+      const prev = prevMap[c.id];
+      if (prev) {
+        if (prev.price_change_percentage_7d_in_currency != null) {
+          c.price_change_percentage_7d_in_currency = prev.price_change_percentage_7d_in_currency;
+        }
+        if (prev.price_change_percentage_30d_in_currency != null) {
+          c.price_change_percentage_30d_in_currency = prev.price_change_percentage_30d_in_currency;
+        }
+      }
+    });
+    allCoins = transformed;
+
     renderCoinList();
     autoCloseTrades({ silent: !firstFetchDone });
     checkNearLevels();
@@ -1558,9 +1618,11 @@ async function fetchCrypto() {
     if (currentView === 'journal') renderJournal();
     firstFetchDone = true;
     failStreak = 0;
+
     const w = allCoins.filter(c => !isStablecoin(c) && (isMomentumBurst(c) || isPullback(c))).length;
     $('status').textContent = `${allCoins.length} coins · ${w} setup${w !== 1 ? 's' : ''} · ${currentTimeframe.toUpperCase()} · ${new Date().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}`;
   } catch (e) {
+    console.error(e);
     failStreak++;
     const msg = failStreak >= 3 ? `Failed to load (${failStreak}×) — backing off` : 'Failed to load — tap ↻';
     $('status').innerHTML = `<span style="color:var(--red)">${msg}</span>`;
@@ -1672,7 +1734,7 @@ function checkNewSetups({ silent = false } = {}) {
 }
 
 /* ============================================================
-   COOLDOWN: streak check + render
+   COOLDOWN: streak + render
 ============================================================ */
 function checkStreakCooldown() {
   const trades = loadTrades();
@@ -1909,7 +1971,7 @@ function saveEditedTrade(id) {
 }
 
 /* ============================================================
-   STATS + PORTFOLIO ANALYSIS
+   STATS + PORTFOLIO
 ============================================================ */
 function computeStats(trades) {
   const closed = trades.filter(t => t.status === 'win' || t.status === 'loss');
@@ -2033,13 +2095,13 @@ function generateInsight(stats, setupG, coinG, portfolio, drawdown, calibration)
 
   if (calibration && calibration.samples >= 5) {
     const d = calibration.delta;
-    if (d >= 8) lines.push(`📊 <span class="good">Calibration: beating your estimates by ${d.toFixed(0)}%</span> — your picks are stronger than the model thinks.`);
-    else if (d <= -8) lines.push(`📊 <span class="bad">Calibration: actual ${Math.abs(d).toFixed(0)}% below estimate</span> — be more selective.`);
+    if (d >= 8) lines.push(`📊 <span class="good">Calibration: beating your estimates by ${d.toFixed(0)}%</span>`);
+    else if (d <= -8) lines.push(`📊 <span class="bad">Calibration: actual ${Math.abs(d).toFixed(0)}% below estimate</span>`);
     else lines.push(`📊 Calibration: model matches reality within ${Math.abs(d).toFixed(0)}%.`);
   }
 
-  if (drawdown.maxLossStreak >= 3) lines.push(`⚠️ Longest losing streak: <b>${drawdown.maxLossStreak}</b>. Normal. Don't panic-size.`);
-  if (drawdown.maxWinStreak >= 4) lines.push(`🔥 Longest winning streak: <b>${drawdown.maxWinStreak}</b>. Consider rebalancing.`);
+  if (drawdown.maxLossStreak >= 3) lines.push(`⚠️ Longest losing streak: <b>${drawdown.maxLossStreak}</b>. Normal.`);
+  if (drawdown.maxWinStreak >= 4) lines.push(`🔥 Longest winning streak: <b>${drawdown.maxWinStreak}</b>.`);
   if (drawdown.current <= -3) lines.push(`<span class="warn">You're on a ${Math.abs(drawdown.current)}-loss streak.</span> Consider a break.`);
   if (drawdown.current >= 3) lines.push(`<span class="good">You're on a ${drawdown.current}-win streak.</span>`);
 
@@ -2395,18 +2457,29 @@ async function loadChart(coin, days) {
   const FIVE_MIN = 5 * 60 * 1000;
   if (cached && Date.now() - cached.ts < FIVE_MIN) { if (myId !== chartReqId) return; renderChart(coin, cached.data); return; }
   try {
-    const url = `https://api.coingecko.com/api/v3/coins/${coin.id}/market_chart?vs_currency=usd&days=${days}`;
-    const res = await fetch(url);
+    // Binance klines instead of CoinGecko
+    const symbol = coin.symbol.toUpperCase() + 'USDT';
+    let interval = '1d';
+    if (days <= 1) interval = '5m';
+    else if (days <= 7) interval = '1h';
+    else if (days <= 30) interval = '4h';
+    else interval = '1d';
+    const limit = Math.min(500, days <= 1 ? 288 : days <= 7 ? 168 : days <= 30 ? 180 : 180);
+    const klines = await fetchBinanceKlines(symbol, interval, limit);
     if (myId !== chartReqId) return;
-    if (!res.ok) throw new Error('HTTP ' + res.status);
-    const json = await res.json();
-    if (myId !== chartReqId) return;
-    if (!json.prices || !json.prices.length) throw new Error('No data');
-    const series = json.prices.map(([ts, p]) => ({ time: Math.floor(ts / 1000), value: p }));
-    chartCache[cacheKey] = { data: series, ts: Date.now() };
+    if (!Array.isArray(klines) || !klines.length) throw new Error('No data');
+    const series = klines.map(k => ({
+      time: Math.floor(parseInt(k[0]) / 1000),
+      value: parseFloat(k[4])
+    }));
+    // Deduplicate times (Binance sometimes returns duplicates near open candle)
+    const seen = new Set();
+    const clean = [];
+    series.forEach(p => { if (!seen.has(p.time)) { seen.add(p.time); clean.push(p); } });
+    chartCache[cacheKey] = { data: clean, ts: Date.now() };
     pruneChartCache();
     if (myId !== chartReqId) return;
-    renderChart(coin, series);
+    renderChart(coin, clean);
   } catch (e) {
     if (myId !== chartReqId) return;
     statusEl.textContent = 'Could not load chart. Tap a period tab to retry.';
@@ -2497,16 +2570,18 @@ function renderDetailStats(coin) {
   const confCount = confluenceCount(coin);
   const volText = ind && ind.dailyVol != null ? `~${ind.dailyVol.toFixed(1)}% / day` : '—';
   const tfLabel = currentTimeframe === '1d' ? '1D candles' : '1H candles';
+  const w7Display = has7d(coin) ? `${w >= 0 ? '+' : ''}${w.toFixed(2)}%` : '—';
+  const m30Display = has30d(coin) ? `${m >= 0 ? '+' : ''}${m.toFixed(2)}%` : '—';
 
   $('dStats').innerHTML = `
     <div class="block">
       <div style="margin-bottom:10px">${tags.join('')}${trendBadge}</div>
       <div class="bd-row"><span class="k">Timeframe</span><span class="v">${tfLabel}</span></div>
       <div class="bd-row"><span class="k">24h change</span><span class="v ${a >= 0 ? 'up' : 'down'}">${a >= 0 ? '+' : ''}${a.toFixed(2)}%</span></div>
-      <div class="bd-row"><span class="k">7d change</span><span class="v ${w >= 0 ? 'up' : 'down'}">${w >= 0 ? '+' : ''}${w.toFixed(2)}%</span></div>
-      <div class="bd-row"><span class="k">30d change</span><span class="v ${m >= 0 ? 'up' : 'down'}">${m >= 0 ? '+' : ''}${m.toFixed(2)}%</span></div>
+      <div class="bd-row"><span class="k">7d change</span><span class="v ${has7d(coin) ? (w >= 0 ? 'up' : 'down') : ''}">${w7Display}</span></div>
+      <div class="bd-row"><span class="k">30d change</span><span class="v ${has30d(coin) ? (m >= 0 ? 'up' : 'down') : ''}">${m30Display}</span></div>
       <div class="bd-row"><span class="k">Daily volatility</span><span class="v">${volText}</span></div>
-      <div class="bd-row"><span class="k">Market cap</span><span class="v">${money(coin.market_cap)}</span></div>
+      <div class="bd-row"><span class="k">Volume rank</span><span class="v">#${coin.market_cap_rank ?? '—'}</span></div>
       <div class="bd-row"><span class="k">Volume (24h)</span><span class="v">${money(coin.total_volume)}</span></div>
       <div class="bd-row"><span class="k">Confluence signals</span><span class="v" style="color:${confCount >= 3 ? 'var(--green)' : '#fbbf24'}">${confCount} of 4</span></div>
       <div class="bd-row"><span class="k">Confluence score</span><span class="v" style="color:${scoreColor(s)}">${s} / 100</span></div>
@@ -2577,7 +2652,6 @@ document.querySelectorAll('.chip').forEach(c => {
   });
 });
 
-// Verdict card expand/collapse
 document.body.addEventListener('click', e => {
   const head = e.target.closest('#verdictHead');
   if (head) {
@@ -2586,7 +2660,6 @@ document.body.addEventListener('click', e => {
   }
 });
 
-// Timeframe toggle
 document.querySelectorAll('.tf-btn').forEach(btn => {
   btn.classList.toggle('active', btn.dataset.tf === currentTimeframe);
   btn.addEventListener('click', () => {
@@ -2620,7 +2693,6 @@ $('cBalance').addEventListener('input', onRiskAccountInput);
 $('cRisk').addEventListener('input', onRiskAccountInput);
 $('jAddBtn').addEventListener('click', addTrade);
 
-// Journal export / import
 $('exportJournalBtn').addEventListener('click', () => {
   try {
     const data = {
@@ -2671,7 +2743,6 @@ $('importFileInput').addEventListener('change', async (e) => {
   }
 });
 
-// Cooldown: pause button
 $('pauseTradingBtn').addEventListener('click', () => {
   if (!confirm('Pause trading for 24 hours? You can resume early but it requires typing a confirmation phrase.')) return;
   activateCooldown(24, 'manual');
@@ -2799,7 +2870,6 @@ renderJournal();
 checkStreakCooldown();
 renderVerdict();
 
-// Refresh cooldown countdown every minute
 setInterval(() => {
   if (currentView === 'journal' && isCooldownActive()) renderCooldownPanel();
   if (currentView === 'scan') renderVerdict();
