@@ -68,6 +68,7 @@
   }
   .coin-card.highlight { border-color: var(--blue); }
   .coin-card.parabolic { border-color: rgba(239,68,68,0.5); }
+  .coin-card.broken { border-color: rgba(239,68,68,0.4); }
   .coin-card .top { display: flex; align-items: flex-start; gap: 10px; margin-bottom: 12px; }
   .coin-card .info { flex: 1; min-width: 0; }
   .coin-card .name { font-size: 1rem; font-weight: 700; letter-spacing: -0.1px; }
@@ -79,7 +80,6 @@
   .coin-card .metrics { display: flex; gap: 16px; font-size: 0.78rem; color: var(--muted); margin-bottom: 12px; flex-wrap: wrap; }
   .coin-card .metrics span { color: var(--text); font-weight: 600; }
 
-  /* Star button */
   .star-btn {
     width: 32px; height: 32px; padding: 0;
     background: transparent; border: none;
@@ -92,10 +92,7 @@
     font-family: inherit;
   }
   .star-btn:active { transform: scale(0.85); }
-  .star-btn.watched {
-    opacity: 1; color: #fbbf24;
-    text-shadow: 0 0 8px rgba(251,191,36,0.35);
-  }
+  .star-btn.watched { opacity: 1; color: #fbbf24; text-shadow: 0 0 8px rgba(251,191,36,0.35); }
 
   .sig-row { display: flex; gap: 8px; margin-bottom: 10px; align-items: center; flex-wrap: wrap; }
   .sig-badge { font-size: 0.72rem; padding: 4px 10px; border-radius: 6px; font-weight: 700; letter-spacing: 0.2px; }
@@ -106,6 +103,13 @@
   .trend-pill.up { background: rgba(34,197,94,0.12); color: #4ade80; }
   .trend-pill.down { background: rgba(239,68,68,0.12); color: #f87171; }
   .trend-pill.neutral { background: rgba(138,148,166,0.12); color: #8a94a6; }
+
+  .struct-pill {
+    font-size: 0.68rem; padding: 3px 8px; border-radius: 5px;
+    font-weight: 700; letter-spacing: 0.3px;
+  }
+  .struct-pill.broken { background: rgba(239,68,68,0.15); color: #f87171; }
+  .struct-pill.range { background: rgba(138,148,166,0.12); color: #8a94a6; }
 
   .chance-block {
     display: flex; align-items: center; gap: 12px;
@@ -122,6 +126,12 @@
     background: rgba(239,68,68,0.12); color: #fca5a5;
     font-size: 0.72rem; font-weight: 600;
     border-bottom: 1px solid rgba(239,68,68,0.25);
+  }
+  .broken-strip {
+    margin: -16px -16px 12px; padding: 8px 16px;
+    background: rgba(239,68,68,0.09); color: #fca5a5;
+    font-size: 0.72rem; font-weight: 600;
+    border-bottom: 1px solid rgba(239,68,68,0.2);
   }
 
   .tag { font-size: 0.68rem; padding: 3px 9px; border-radius: 6px; font-weight: 600; letter-spacing: 0.2px; }
@@ -294,7 +304,7 @@
   .bd-row { display: flex; justify-content: space-between; padding: 9px 0; font-size: 0.82rem; border-bottom: 1px solid var(--border-soft); }
   .bd-row:last-child { border-bottom: none; }
   .bd-row .k { color: var(--muted); }
-  .bd-row .v { font-weight: 600; }
+  .bd-row .v { font-weight: 600; text-align: right; }
   .switch-row { display: flex; justify-content: space-between; align-items: center; padding: 14px 0; border-bottom: 1px solid var(--border-soft); gap: 14px; }
   .switch-row:last-child { border-bottom: none; }
   .switch-row .txt { flex: 1; min-width: 0; }
@@ -547,6 +557,7 @@
     </div>
 
     <div class="period-tabs" id="periodTabs">
+      <button data-period="1h">1H</button>
       <button data-period="1">1D</button>
       <button data-period="7" class="active">7D</button>
       <button data-period="30">30D</button>
@@ -615,8 +626,10 @@
 <script>
 /* ============================================================
    DATA SOURCE: BINANCE
+   Universe: every liquid USDT pair (>= $1M daily volume)
 ============================================================ */
 const BINANCE_TICKER_URL = 'https://api.binance.com/api/v3/ticker/24hr';
+const MIN_VOLUME_USD = 1_000_000;
 
 const COIN_NAMES = {
   BTC:'Bitcoin', ETH:'Ethereum', BNB:'BNB', SOL:'Solana', XRP:'XRP',
@@ -655,7 +668,8 @@ const COIN_NAMES = {
   RSR:'Reserve Rights', AUDIO:'Audius', CVC:'Civic', MASK:'Mask Network',
   DODO:'DODO', BNT:'Bancor', TRB:'Tellor', ILV:'Illuvium', MAGIC:'Magic',
   BLUR:'Blur', XAI:'Xai', MEME:'Memecoin', ACE:'Fusionist', NFP:'NFPrompt',
-  AI:'Sleepless AI', OCEAN:'Ocean Protocol', AGIX:'SingularityNET'
+  AI:'Sleepless AI', OCEAN:'Ocean Protocol', AGIX:'SingularityNET',
+  ASTER:'Aster', PENGU:'Pudgy Penguins', ONDO:'Ondo', POL:'Polygon Ecosystem Token'
 };
 
 const EXCLUDED_BASES = new Set([
@@ -755,6 +769,131 @@ function has7d(c) { return c.price_change_percentage_7d_in_currency != null; }
 function has30d(c) { return c.price_change_percentage_30d_in_currency != null; }
 
 /* ============================================================
+   MARKET STRUCTURE
+   Swing detection → trend (3 swings) → BOS / CHoCH → position
+============================================================ */
+
+// CHANGE 1: lookback reduced from 3 → 2 (looser swing detection)
+function findSwings(candles, lookback = 2) {
+  const highs = [];
+  const lows = [];
+  for (let i = lookback; i < candles.length - lookback; i++) {
+    const c = candles[i];
+    let isHigh = true;
+    let isLow = true;
+    for (let j = 1; j <= lookback; j++) {
+      if (candles[i - j].high >= c.high || candles[i + j].high >= c.high) isHigh = false;
+      if (candles[i - j].low <= c.low || candles[i + j].low <= c.low) isLow = false;
+      if (!isHigh && !isLow) break;
+    }
+    if (isHigh) highs.push({ idx: i, price: c.high });
+    if (isLow) lows.push({ idx: i, price: c.low });
+  }
+  return { highs, lows };
+}
+
+// CHANGE 2: 3-swing trend detection (was 2-swing)
+// CHANGE 3: BOS window extended from 30 → 60 candles
+// CHANGE 4: default 'neutral' (was 'range')
+function classifyStructure(candles) {
+  const empty = {
+    trend: 'unknown', bos: null, choch: null, position: 'unknown',
+    lastHigh: null, lastLow: null, distToResistance: null, distToSupport: null,
+    swingCounts: { highs: 0, lows: 0 }
+  };
+  if (!candles || candles.length < 30) return empty;
+
+  const { highs, lows } = findSwings(candles, 2);
+
+  // CHANGE 2: require 3 swings
+  if (highs.length < 3 || lows.length < 3) return empty;
+
+  const h1 = highs[highs.length - 1];
+  const h2 = highs[highs.length - 2];
+  const h3 = highs[highs.length - 3];
+  const l1 = lows[lows.length - 1];
+  const l2 = lows[lows.length - 2];
+  const l3 = lows[lows.length - 3];
+
+  // CHANGE 2: trend detection uses three swing comparisons
+  const higherHighs = [h1.price > h2.price, h2.price > h3.price];
+  const higherLows  = [l1.price > l2.price, l2.price > l3.price];
+  const lowerHighs  = [h1.price < h2.price, h2.price < h3.price];
+  const lowerLows   = [l1.price < l2.price, l2.price < l3.price];
+
+  const upScore   = higherHighs.filter(Boolean).length + higherLows.filter(Boolean).length;
+  const downScore = lowerHighs.filter(Boolean).length + lowerLows.filter(Boolean).length;
+
+  // CHANGE 4: default is 'neutral' (was 'range')
+  let trend = 'neutral';
+  if (upScore >= 3 && upScore > downScore) trend = 'up';
+  else if (downScore >= 3 && downScore > upScore) trend = 'down';
+  else if (upScore >= 2 && upScore >= downScore + 2) trend = 'up';
+  else if (downScore >= 2 && downScore >= upScore + 2) trend = 'down';
+
+  const last = candles[candles.length - 1];
+  const price = last.close;
+
+  // CHANGE 3: BOS window extended from 30 → 60 candles
+  const recentThreshold = candles.length - 60;
+  let bos = null;
+  for (let i = highs.length - 1; i >= 0; i--) {
+    if (highs[i].idx > recentThreshold && last.high > highs[i].price) { bos = 'bull'; break; }
+  }
+  if (!bos) {
+    for (let i = lows.length - 1; i >= 0; i--) {
+      if (lows[i].idx > recentThreshold && last.low < lows[i].price) { bos = 'bear'; break; }
+    }
+  }
+
+  let choch = null;
+  if (trend === 'up' && last.close < l1.price) choch = 'bear';
+  if (trend === 'down' && last.close > h1.price) choch = 'bull';
+
+  const range = h1.price - l1.price;
+  let position = 'equilibrium';
+  if (range > 0) {
+    const pos = (price - l1.price) / range;
+    if (pos > 0.7) position = 'premium';
+    else if (pos < 0.3) position = 'discount';
+  }
+
+  const distToResistance = h1.price > 0 ? ((h1.price - price) / price) * 100 : 0;
+  const distToSupport = price > 0 ? ((price - l1.price) / price) * 100 : 0;
+
+  return {
+    trend, bos, choch, position,
+    lastHigh: h1.price,
+    lastLow: l1.price,
+    distToResistance,
+    distToSupport,
+    swingCounts: { highs: highs.length, lows: lows.length }
+  };
+}
+
+function structureMultiplier(s) {
+  if (!s || s.trend === 'unknown') return 1.0;
+  let m = 1.0;
+  if (s.trend === 'up')          m *= 1.12;
+  else if (s.trend === 'down')   m *= 0.60;
+  else if (s.trend === 'neutral') m *= 0.85;   // was 'range', now 'neutral'
+  if (s.bos === 'bull') m *= 1.06;
+  if (s.bos === 'bear') m *= 0.88;
+  if (s.choch === 'bear') m *= 0.72;
+  if (s.choch === 'bull') m *= 1.08;
+  if (s.position === 'premium')  m *= 0.90;
+  if (s.position === 'discount') m *= 1.06;
+  return Math.max(0.30, Math.min(1.35, m));
+}
+
+function structureBadge(s) {
+  if (!s || s.trend === 'unknown') return null;
+  if (s.choch === 'bear') return { label: '⚠️ Structure broke down', cls: 'broken' };
+  if (s.trend === 'down') return { label: '📐 Downtrend', cls: 'broken' };
+  return null;
+}
+
+/* ============================================================
    WATCHLIST
 ============================================================ */
 function loadWatchlist() {
@@ -817,7 +956,7 @@ function computeMarketRegime() {
   } else if (btc7 < -5 || breadth < 30) {
     state = 'bear'; icon = '🌧️';
     title = 'Bearish market';
-    desc = `BTC ${btc7.toFixed(1)}% this week · only ${breadth.toFixed(0)}% of top 30 up. Signals often fail here. Consider waiting.`;
+    desc = `BTC ${btc7.toFixed(1)}% this week · only ${breadth.toFixed(0)}% of top 30 up. Signals often fail here.`;
     cls = 'bear';
   } else {
     state = 'neutral'; icon = '⛅';
@@ -879,19 +1018,19 @@ function computeVerdict() {
 
   if (regime && regime.state === 'bear') {
     stops++;
-    reasons.push({ level: 'bad', text: `<b>Market is bearish.</b> BTC ${regime.btc7.toFixed(1)}% on the week, only ${regime.breadth.toFixed(0)}% of top 30 green. Book Ch.10: signals fail in bad weather.` });
+    reasons.push({ level: 'bad', text: `<b>Market is bearish.</b> BTC ${regime.btc7.toFixed(1)}% on the week. Signals fail more often here.` });
   } else if (regime && regime.state === 'bull') {
-    reasons.push({ level: 'good', text: `<b>Market is bullish.</b> BTC +${regime.btc7.toFixed(1)}% this week, ${regime.breadth.toFixed(0)}% of top 30 green. Favourable conditions.` });
+    reasons.push({ level: 'good', text: `<b>Market is bullish.</b> BTC +${regime.btc7.toFixed(1)}% this week. Favourable conditions.` });
   } else if (regime) {
-    reasons.push({ level: 'info', text: `<b>Market is neutral.</b> BTC ${regime.btc7 >= 0 ? '+' : ''}${regime.btc7.toFixed(1)}% this week. Quality setups only.` });
+    reasons.push({ level: 'info', text: `<b>Market is neutral.</b> Quality setups only.` });
   }
 
   if (open.length >= 2) {
     stops++;
-    reasons.push({ level: 'bad', text: `<b>You already have ${open.length} open trades.</b> Book Ch.6: don't stack positions. Close or manage what's open first.` });
+    reasons.push({ level: 'bad', text: `<b>You already have ${open.length} open trades.</b> Don't stack positions.` });
   } else if (open.length === 1) {
     cautions++;
-    reasons.push({ level: 'warn', text: '<b>One open trade.</b> Fine, but only add another if it\'s a different setup and coin.' });
+    reasons.push({ level: 'warn', text: '<b>One open trade.</b> Only add another if it\'s a different setup and coin.' });
   } else {
     reasons.push({ level: 'good', text: '<b>No open trades.</b> Clean slate.' });
   }
@@ -899,26 +1038,26 @@ function computeVerdict() {
   const todayCount = tradesLoggedToday();
   if (todayCount >= 1) {
     stops++;
-    reasons.push({ level: 'bad', text: `<b>You've already logged ${todayCount} trade${todayCount !== 1 ? 's' : ''} today.</b> Book Ch.10: overtrading is a beginner\'s biggest leak.` });
+    reasons.push({ level: 'bad', text: `<b>Already logged ${todayCount} trade${todayCount !== 1 ? 's' : ''} today.</b> Overtrading is a beginner\'s biggest leak.` });
   } else {
     reasons.push({ level: 'good', text: '<b>No trades logged today.</b> Fresh mind.' });
   }
 
   if (dd.current <= -2) {
     stops++;
-    reasons.push({ level: 'bad', text: `<b>You're on a ${Math.abs(dd.current)}-loss streak right now.</b> Book Ch.6: wait for the streak to break before sizing up.` });
+    reasons.push({ level: 'bad', text: `<b>On a ${Math.abs(dd.current)}-loss streak.</b> Wait for it to break before sizing up.` });
   } else if (dd.current >= 2) {
-    reasons.push({ level: 'good', text: `<b>On a ${dd.current}-win streak.</b> Ride it, but don\'t let it make you reckless.` });
+    reasons.push({ level: 'good', text: `<b>On a ${dd.current}-win streak.</b> Ride it, don\'t let it make you reckless.` });
   } else {
     reasons.push({ level: 'info', text: '<b>No active losing streak.</b>' });
   }
 
   if (portfolio.capitalPct > 50) {
     stops++;
-    reasons.push({ level: 'bad', text: `<b>${portfolio.capitalPct.toFixed(0)}% of your account is already deployed.</b> Book Ch.6: keep dry powder for the good setups.` });
+    reasons.push({ level: 'bad', text: `<b>${portfolio.capitalPct.toFixed(0)}% of account deployed.</b> Keep dry powder for good setups.` });
   } else if (portfolio.capitalPct > 30) {
     cautions++;
-    reasons.push({ level: 'warn', text: `<b>${portfolio.capitalPct.toFixed(0)}% deployed.</b> Some room left, but get selective.` });
+    reasons.push({ level: 'warn', text: `<b>${portfolio.capitalPct.toFixed(0)}% deployed.</b> Get selective.` });
   } else {
     reasons.push({ level: 'good', text: `<b>Only ${portfolio.capitalPct.toFixed(0)}% of capital deployed.</b> Plenty of room.` });
   }
@@ -926,7 +1065,7 @@ function computeVerdict() {
   const hour = new Date().getHours();
   if (hour >= 23 || hour < 6) {
     cautions++;
-    reasons.push({ level: 'warn', text: `<b>It's late (${hour}:00).</b> Trading tired is a known killer. Consider waiting until morning.` });
+    reasons.push({ level: 'warn', text: `<b>It's late (${hour}:00).</b> Consider waiting until morning.` });
   }
 
   let level, icon, title, sub;
@@ -983,7 +1122,7 @@ function renderVerdict() {
 }
 
 /* ============================================================
-   TECHNICAL INDICATORS
+   TECHNICAL INDICATORS + STRUCTURE
 ============================================================ */
 const indicatorsCache = {};
 const indicatorInFlight = new Set();
@@ -1055,20 +1194,32 @@ async function fetchBinanceKlines(symbol, interval = '1h', limit = 200) {
   if (!res.ok) throw new Error('Binance ' + res.status);
   return await res.json();
 }
+
 async function computeIndicators(coin, timeframe) {
   const symbol = coin.symbol.toUpperCase() + 'USDT';
   try {
     const dailyKlines = await fetchBinanceKlines(symbol, '1d', 200);
     if (!Array.isArray(dailyKlines) || dailyKlines.length < 31) throw new Error('Not enough daily candles');
-    const dailyCloses = dailyKlines.map(k => parseFloat(k[4]));
+
+    const dailyCandles = dailyKlines.map(k => ({
+      time: parseInt(k[0]),
+      open: parseFloat(k[1]),
+      high: parseFloat(k[2]),
+      low: parseFloat(k[3]),
+      close: parseFloat(k[4]),
+      volume: parseFloat(k[5])
+    }));
+    const dailyCloses = dailyCandles.map(c => c.close);
     const n = dailyCloses.length;
     const change7d = n >= 8 ? ((dailyCloses[n-1] - dailyCloses[n-8]) / dailyCloses[n-8]) * 100 : null;
     const change30d = n >= 31 ? ((dailyCloses[n-1] - dailyCloses[n-31]) / dailyCloses[n-31]) * 100 : null;
 
+    const structure = classifyStructure(dailyCandles);
+
     let closes, volumes;
     if (timeframe === '1d') {
       closes = dailyCloses;
-      volumes = dailyKlines.map(k => parseFloat(k[5]));
+      volumes = dailyCandles.map(c => c.volume);
     } else {
       const hKlines = await fetchBinanceKlines(symbol, '1h', 200);
       if (!Array.isArray(hKlines) || hKlines.length < 30) throw new Error('Not enough hourly candles');
@@ -1077,6 +1228,7 @@ async function computeIndicators(coin, timeframe) {
     }
 
     const price = closes[closes.length - 1];
+
     const s50 = sma(closes, 50);
     const s200 = sma(closes, 200);
     let trend = 'neutral';
@@ -1118,9 +1270,18 @@ async function computeIndicators(coin, timeframe) {
       else volatility = 'high';
     }
 
-    return { trend, momentum, volume, volatility, dailyVol, timeframe, change7d, change30d, ts: Date.now() };
+    return {
+      trend, momentum, volume, volatility, dailyVol, timeframe,
+      change7d, change30d,
+      structure,
+      ts: Date.now()
+    };
   } catch (e) {
-    return { trend: 'neutral', momentum: 'neutral', volume: 'neutral', volatility: 'unknown', dailyVol: null, timeframe, ts: Date.now(), error: true };
+    return {
+      trend: 'neutral', momentum: 'neutral', volume: 'neutral',
+      volatility: 'unknown', dailyVol: null, timeframe,
+      structure: null, ts: Date.now(), error: true
+    };
   }
 }
 
@@ -1219,6 +1380,7 @@ function confluenceScore(c) {
   const base = qualityScore35(c);
   let total = trendPts + momentumPts + volumePts + base;
   if (isParabolic(c)) total *= 0.5;
+  if (ind && ind.structure) total *= structureMultiplier(ind.structure);
   return Math.max(0, Math.min(100, Math.round(total)));
 }
 function winnerScore(c) { return confluenceScore(c); }
@@ -1230,7 +1392,8 @@ function confluenceCount(c) {
   if (ind.momentum === 'strong') n++;
   if (ind.volume === 'high') n++;
   if (expectedValue(c) > 0) n++;
-  return n;
+  if (ind.structure && ind.structure.trend === 'up' && !ind.structure.choch) n = Math.max(n, 3);
+  return Math.min(4, n);
 }
 function scoreColor(s) {
   if (s >= 70) return 'var(--green)';
@@ -1257,6 +1420,13 @@ function estimateWinChance(c) {
   const rank = c.market_cap_rank ?? 500;
   if (rank <= 20) logOdds += 0.2;
   else if (rank >= 100) logOdds -= 0.3;
+  const ind = getInd(c);
+  if (ind && ind.structure) {
+    if (ind.structure.trend === 'up') logOdds += 0.2;
+    else if (ind.structure.trend === 'down') logOdds -= 0.6;
+    if (ind.structure.choch === 'bear') logOdds -= 0.4;
+    if (ind.structure.position === 'premium') logOdds -= 0.2;
+  }
   const p = 1 / (1 + Math.exp(-logOdds));
   return Math.max(5, Math.min(65, Math.round(p * 100)));
 }
@@ -1413,6 +1583,7 @@ function coinCardHTML(c, highlight) {
   const ind = getInd(c);
   const parabolic = isParabolic(c);
   const watched = isWatched(c.symbol);
+  const structBadge = ind && ind.structure ? structureBadge(ind.structure) : null;
 
   let setupBadge = '';
   const isMom = isMomentumBurst(c);
@@ -1455,17 +1626,25 @@ function coinCardHTML(c, highlight) {
       ⚠️ Up ${Math.max(ch24(c), ch7(c)).toFixed(0)}% — book Ch.10 warns these reverse hard
     </div>` : '';
 
+  const structStrip = (!parabolic && structBadge) ? `
+    <div class="broken-strip">
+      ${structBadge.label} — market structure is against this trade
+    </div>` : '';
+
   const chanceBlock = highlight ? `
     <div class="chance-block" style="border-color:${chanceColor(chance)}33">
       <div class="chance-num" style="color:${chanceColor(chance)}">${chance}%</div>
       <div class="chance-label">win chance · EV <b style="color:${ev >= 0 ? 'var(--green)' : 'var(--red)'}">${ev >= 0 ? '+' : ''}$${ev.toFixed(2)}</b></div>
     </div>` : '';
 
+  const cardCls = `${highlight ? 'highlight' : ''} ${parabolic ? 'parabolic' : ''} ${(!parabolic && structBadge) ? 'broken' : ''}`;
+
   return `
-    <div class="coin-card ${highlight ? 'highlight' : ''} ${parabolic ? 'parabolic' : ''}"
+    <div class="coin-card ${cardCls}"
          data-symbol="${esc(c.symbol)}" data-id="${esc(c.id)}"
          style="cursor:pointer">
       ${parabolicStrip}
+      ${structStrip}
       <div class="top">
         <button class="star-btn ${watched ? 'watched' : ''}"
                 data-symbol="${esc(c.symbol)}"
@@ -1508,7 +1687,6 @@ function coinCardHTML(c, highlight) {
 function renderCoinList() {
   renderVerdict();
 
-  // Update watchlist chip label
   const wl = loadWatchlist();
   const chipEl = document.querySelector('[data-filter="watchlist"]');
   if (chipEl) {
@@ -1536,27 +1714,27 @@ function renderCoinList() {
   if (currentFilter === 'winners') {
     explainer = `
       <div class="banner" style="border-left-color:var(--amber);margin-bottom:16px">
-        <b>What the % means.</b> An estimate from historical setup rates. <b>Not a guarantee.</b> ⚠️ <b>Parabolic</b> tags mean the coin is up 40%+ in 7d.
+        <b>What the % means.</b> An estimate from historical setup rates. <b>Not a guarantee.</b> ⚠️ If a red <b>structure</b> strip shows, the market structure is against this trade — skip it.
       </div>`;
   } else if (currentFilter === 'confluence') {
     explainer = `
       <div class="banner" style="border-left-color:var(--green);margin-bottom:16px">
-        <b>✨ Confluence filter.</b> Only 3+ of: <span style="color:#60a5fa">Trend UP</span> · <span style="color:#fb923c">Strong Momentum</span> · <span style="color:var(--green)">High Volume</span> · <span style="color:var(--green)">Green EV</span>.
+        <b>✨ Confluence filter.</b> Only 3+ of: <span style="color:#60a5fa">Trend UP</span> · <span style="color:#fb923c">Strong Momentum</span> · <span style="color:var(--green)">High Volume</span> · <span style="color:var(--green)">Green EV</span> · <span style="color:#fbbf24">Clean Structure</span>.
       </div>`;
   } else if (currentFilter === 'watchlist') {
     explainer = `
       <div class="banner" style="border-left-color:#fbbf24;margin-bottom:16px">
-        <b>⭐ Your watchlist.</b> Tap the ☆ on any coin card to add or remove it here. Saved on this device.
+        <b>⭐ Your watchlist.</b> Tap the ☆ on any coin card to add or remove it here.
       </div>`;
   }
 
   if (!list.length) {
     const msgs = {
-      watchlist: ['⭐', 'No coins watched yet.', 'Tap the ☆ on any coin card to add it here. Your watchlist is your personal shortlist — 5–10 coins you understand well is ideal.'],
+      watchlist: ['⭐', 'No coins watched yet.', 'Tap the ☆ on any coin card to add it here.'],
       winners: ['🏆', 'No qualified setups right now.', 'This is the correct result most of the time. Wait for the setup.'],
       momentum: ['🚀', 'No momentum setups.', 'Needs a coin up 3–8% today with a positive 7-day trend.'],
       pullback: ['📉', 'No pullback setups.', 'Needs a coin up 12%+ this week that dipped 2–5% today.'],
-      confluence: ['✨', 'No confluence setups yet.', 'Coins must meet 3 of 4 conditions.'],
+      confluence: ['✨', 'No confluence setups yet.', 'Coins must meet 3 of 5 conditions.'],
       all: ['📊', 'No coins found.', 'Try refreshing.']
     };
     const [e, t, s] = msgs[currentFilter] || msgs.all;
@@ -1574,7 +1752,7 @@ function renderCoinList() {
 }
 
 /* ============================================================
-   FETCH
+   FETCH — all liquid USDT pairs
 ============================================================ */
 let pollTimer = null;
 let failStreak = 0;
@@ -1590,8 +1768,8 @@ function transformBinanceTickers(tickers) {
     if (EXCLUDED_BASES.has(base)) return false;
     return true;
   });
+  list = list.filter(t => parseFloat(t.quoteVolume) >= MIN_VOLUME_USD);
   list.sort((a, b) => parseFloat(b.quoteVolume) - parseFloat(a.quoteVolume));
-  list = list.slice(0, 100);
   return list.map((t, i) => {
     const base = t.symbol.slice(0, -4);
     const lower = base.toLowerCase();
@@ -1621,7 +1799,7 @@ async function fetchCrypto() {
     const raw = await res.json();
     if (!Array.isArray(raw) || !raw.length) throw new Error('Bad payload');
     const transformed = transformBinanceTickers(raw);
-    if (!transformed.length) throw new Error('No USDT pairs found');
+    if (!transformed.length) throw new Error('No liquid USDT pairs found');
 
     const prevMap = {};
     allCoins.forEach(c => { prevMap[c.id] = c; });
@@ -1643,7 +1821,7 @@ async function fetchCrypto() {
     failStreak = 0;
 
     const w = allCoins.filter(c => !isStablecoin(c) && (isMomentumBurst(c) || isPullback(c))).length;
-    $('status').textContent = `${allCoins.length} coins · ${w} setup${w !== 1 ? 's' : ''} · ${currentTimeframe.toUpperCase()} · ${new Date().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}`;
+    $('status').textContent = `${allCoins.length} liquid pairs · ${w} setup${w !== 1 ? 's' : ''} · ${currentTimeframe.toUpperCase()} · ${new Date().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}`;
   } catch (e) {
     console.error(e);
     failStreak++;
@@ -1856,10 +2034,15 @@ function autoFillTrade() {
   const parabNote = isParabolic(c)
     ? '<br><span style="color:#f87171">⚠️ Parabolic move — book Ch.10 warns these reverse.</span>'
     : '';
+  let structNote = '';
+  if (ind && ind.structure) {
+    const sb = structureBadge(ind.structure);
+    if (sb) structNote = `<br><span style="color:#f87171">${sb.label} — market structure against this trade.</span>`;
+  }
   preview.innerHTML = `
     <b>${esc(c.name)}</b> · live ${price(entry)}<br>
     Stop ${(stopPct*100).toFixed(1)}% · Target +${(targetPct*100).toFixed(1)}% · R:R <span class="green">${rrr}:1</span><br>
-    Risk <b>${money(riskAmount)}</b> · Size <b>${money(posValue)}</b> (<span class="green">${units(position)} ${esc(c.symbol.toUpperCase())}</span>)${volNote}${parabNote}`;
+    Risk <b>${money(riskAmount)}</b> · Size <b>${money(posValue)}</b> (<span class="green">${units(position)} ${esc(c.symbol.toUpperCase())}</span>)${volNote}${parabNote}${structNote}`;
 }
 
 function addTrade() {
@@ -2475,7 +2658,6 @@ function openCoinDetail(symbol, coinId) {
 async function openCoinFromJournal(symbol, coinId) {
   let coin = findCoinLive(symbol, coinId);
   if (!coin) {
-    // Fetch on demand from Binance
     showBanner(`⏳ Loading ${symbol.toUpperCase()}…`, 'info');
     try {
       const binanceSymbol = symbol.toUpperCase() + 'USDT';
@@ -2519,12 +2701,12 @@ async function loadChart(coin, days) {
   if (cached && Date.now() - cached.ts < FIVE_MIN) { if (myId !== chartReqId) return; renderChart(coin, cached.data); return; }
   try {
     const symbol = coin.symbol.toUpperCase() + 'USDT';
-    let interval = '1d';
-    if (days <= 1) interval = '5m';
-    else if (days <= 7) interval = '1h';
-    else if (days <= 30) interval = '4h';
-    else interval = '1d';
-    const limit = Math.min(500, days <= 1 ? 288 : days <= 7 ? 168 : days <= 30 ? 180 : 180);
+    let interval, limit;
+    if (days === '1h')       { interval = '1h'; limit = 200; }
+    else if (days === 1)     { interval = '5m'; limit = 288; }
+    else if (days === 7)     { interval = '1h'; limit = 168; }
+    else if (days === 30)    { interval = '4h'; limit = 180; }
+    else                     { interval = '1d'; limit = 90; }
     const klines = await fetchBinanceKlines(symbol, interval, limit);
     if (myId !== chartReqId) return;
     if (!Array.isArray(klines) || !klines.length) throw new Error('No data');
@@ -2560,7 +2742,7 @@ function renderChart(coin, series) {
       layout: { background: { color: '#131720' }, textColor: '#8a94a6', fontSize: 11 },
       grid: { vertLines: { color: '#1a1f2b' }, horzLines: { color: '#1a1f2b' } },
       rightPriceScale: { borderColor: '#222838' },
-      timeScale: { borderColor: '#222838', timeVisible: currentPeriod <= 7 }
+      timeScale: { borderColor: '#222838', timeVisible: (currentPeriod === '1h' || (typeof currentPeriod === 'number' && currentPeriod <= 7)) }
     });
     currentChartSeries = currentChart.addAreaSeries({
       lineColor: '#3b82f6', topColor: 'rgba(59,130,246,0.35)', bottomColor: 'rgba(59,130,246,0.02)', lineWidth: 2
@@ -2595,6 +2777,49 @@ function renderChart(coin, series) {
   };
   window.addEventListener('resize', window._chartResizeHandler);
 }
+
+// CHANGE 4 follow-through: label "Ranging" → "Neutral / mixed"
+function structureBlockHTML(structure) {
+  if (!structure || structure.trend === 'unknown') {
+    return `
+      <div class="block">
+        <h3>Market structure <span class="hint">not enough data</span></h3>
+        <div class="bd-row"><span class="k">Status</span><span class="v" style="color:var(--muted)">Insufficient swing points</span></div>
+      </div>`;
+  }
+  const trendLabel = structure.trend === 'up' ? '📈 Uptrend (HH + HL)'
+                    : structure.trend === 'down' ? '📉 Downtrend (LH + LL)'
+                    : '↔️ Neutral / mixed';
+  const trendColor = structure.trend === 'up' ? 'var(--green)'
+                    : structure.trend === 'down' ? 'var(--red)'
+                    : 'var(--muted)';
+  const bosLabel = structure.bos === 'bull' ? '✅ Bullish (broke recent high)'
+                  : structure.bos === 'bear' ? '🛑 Bearish (broke recent low)'
+                  : '— none recent';
+  const chochLabel = structure.choch === 'bull' ? '🔄 Bullish reversal signal'
+                    : structure.choch === 'bear' ? '🔄 Bearish reversal signal'
+                    : '— none';
+  const posLabel = structure.position === 'premium' ? '🔺 Premium (near top of range)'
+                  : structure.position === 'discount' ? '🔻 Discount (near bottom of range)'
+                  : '⚖️ Equilibrium (middle of range)';
+  const posColor = structure.position === 'premium' ? 'var(--amber)'
+                  : structure.position === 'discount' ? 'var(--green)'
+                  : 'var(--muted)';
+  const distRes = structure.distToResistance != null ? `${structure.distToResistance.toFixed(2)}%` : '—';
+  const distSup = structure.distToSupport != null ? `${structure.distToSupport.toFixed(2)}%` : '—';
+
+  return `
+    <div class="block">
+      <h3>Market structure <span class="hint">from daily candles</span></h3>
+      <div class="bd-row"><span class="k">Trend</span><span class="v" style="color:${trendColor}">${trendLabel}</span></div>
+      <div class="bd-row"><span class="k">Break of structure</span><span class="v">${bosLabel}</span></div>
+      <div class="bd-row"><span class="k">Change of character</span><span class="v">${chochLabel}</span></div>
+      <div class="bd-row"><span class="k">Position in range</span><span class="v" style="color:${posColor}">${posLabel}</span></div>
+      <div class="bd-row"><span class="k">Resistance above</span><span class="v">${distRes}</span></div>
+      <div class="bd-row"><span class="k">Support below</span><span class="v">${distSup}</span></div>
+    </div>`;
+}
+
 function renderDetailStats(coin) {
   const s = winnerScore(coin);
   const chance = estimateWinChance(coin);
@@ -2643,8 +2868,10 @@ function renderDetailStats(coin) {
       <div class="bd-row"><span class="k">Confluence score</span><span class="v" style="color:${scoreColor(s)}">${s} / 100</span></div>
       <div class="bd-row"><span class="k">Estimated win chance</span><span class="v" style="color:${chanceColor(chance)}">${chance}%</span></div>
       <div class="bd-row"><span class="k">Expected value / $1 risked</span><span class="v" style="color:${ev >= 0 ? 'var(--green)' : 'var(--red)'}">${ev >= 0 ? '+' : ''}$${ev.toFixed(2)}</span></div>
-    </div>`;
+    </div>
+    ${structureBlockHTML(ind && ind.structure)}`;
 }
+
 function cleanupDetailChart() {
   if (currentChart) { try { currentChart.remove(); } catch(e) {} currentChart = null; currentChartSeries = null; }
   currentDetailSymbol = null; currentDetailId = null;
@@ -2674,7 +2901,8 @@ document.querySelectorAll('#periodTabs button').forEach(b => {
   b.addEventListener('click', () => {
     document.querySelectorAll('#periodTabs button').forEach(x => x.classList.remove('active'));
     b.classList.add('active');
-    currentPeriod = Number(b.dataset.period);
+    const raw = b.dataset.period;
+    currentPeriod = (raw === '1h') ? '1h' : Number(raw);
     const coin = findCoinLive(currentDetailSymbol, currentDetailId);
     if (coin) loadChart(coin, currentPeriod);
   });
@@ -2682,9 +2910,7 @@ document.querySelectorAll('#periodTabs button').forEach(b => {
 $('detailBackBtn').addEventListener('click', closeCoinDetail);
 $('dLogTradeBtn').addEventListener('click', openJournalForDetailCoin);
 
-// Coin list click: handles star taps AND opening coin detail
 $('coinList').addEventListener('click', e => {
-  // Star button
   const star = e.target.closest('.star-btn');
   if (star) {
     e.stopPropagation();
@@ -2697,14 +2923,12 @@ $('coinList').addEventListener('click', e => {
     if (currentFilter === 'watchlist' && !nowWatched) {
       renderCoinList();
     } else {
-      // Update chip count
       const wl = loadWatchlist();
       const chipEl = document.querySelector('[data-filter="watchlist"]');
       if (chipEl) chipEl.textContent = wl.length ? `⭐ Watchlist (${wl.length})` : '⭐ Watchlist';
     }
     return;
   }
-  // Coin card → open detail
   const card = e.target.closest('.coin-card');
   if (card && card.dataset.symbol) openCoinDetail(card.dataset.symbol, card.dataset.id || null);
 });
@@ -2862,14 +3086,11 @@ $('bulkConfirmSlot').addEventListener('click', e => {
   if (e.target.closest('.bulk-confirm-yes')) { clearClosedTrades(); return; }
 });
 
-// Interactive target check for trade card tap-to-detail
 function isInteractiveTarget(el) {
   return !!el.closest('button, input, textarea, select, a, .actions, .close-form, .edit-form, .del-confirm');
 }
 
-// Journal list: buttons first, then tap-to-detail
 $('journalList').addEventListener('click', e => {
-  // All existing button handling
   const del = e.target.closest('.del');
   if (del) {
     const id = Number(del.dataset.id);
@@ -2900,7 +3121,6 @@ $('journalList').addEventListener('click', e => {
   const editSave = e.target.closest('.edit-save');
   if (editSave) { saveEditedTrade(Number(editSave.dataset.id)); return; }
 
-  // If nothing above matched, check for tap-to-detail
   if (isInteractiveTarget(e.target)) return;
   if (editingTradeId || closingTradeId || deletingTradeId) return;
 
