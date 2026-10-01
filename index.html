@@ -67,8 +67,6 @@
     transition: border-color 0.15s; overflow: hidden;
   }
   .coin-card.highlight { border-color: var(--blue); }
-  .coin-card.parabolic { border-color: rgba(239,68,68,0.5); }
-  .coin-card.broken { border-color: rgba(239,68,68,0.4); }
   .coin-card .top { display: flex; align-items: flex-start; gap: 10px; margin-bottom: 12px; }
   .coin-card .info { flex: 1; min-width: 0; }
   .coin-card .name { font-size: 1rem; font-weight: 700; letter-spacing: -0.1px; }
@@ -79,6 +77,33 @@
   .up { color: var(--green); } .down { color: var(--red); } .flat { color: var(--muted); }
   .coin-card .metrics { display: flex; gap: 16px; font-size: 0.78rem; color: var(--muted); margin-bottom: 12px; flex-wrap: wrap; }
   .coin-card .metrics span { color: var(--text); font-weight: 600; }
+
+  .verdict-banner {
+    margin: -16px -16px 12px;
+    padding: 10px 16px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    font-weight: 700;
+    font-size: 0.88rem;
+    letter-spacing: 0.3px;
+    border-bottom: 1px solid rgba(255,255,255,0.06);
+  }
+  .verdict-banner.trade {
+    background: rgba(34,197,94,0.15);
+    color: #4ade80;
+  }
+  .verdict-banner.skip {
+    background: rgba(239,68,68,0.12);
+    color: #fca5a5;
+  }
+  .verdict-banner.loading {
+    background: var(--surface-2);
+    color: var(--muted);
+  }
+  .verdict-label { font-size: 0.95rem; }
+  .verdict-reason { font-size: 0.72rem; font-weight: 500; opacity: 0.85; text-align: right; }
 
   .star-btn {
     width: 32px; height: 32px; padding: 0;
@@ -908,6 +933,36 @@ function hasRoomToRun(c) {
 }
 
 /* ============================================================
+   TRADE VERDICT — one-word answer
+============================================================ */
+function tradeVerdict(c) {
+  const ind = getInd(c);
+  if (!ind) return { verdict: 'WAIT', reason: 'Still loading…', cls: 'loading' };
+
+  const reasons = [];
+
+  const chance = estimateWinChance(c);
+  if (chance < 45) reasons.push(`Win chance ${chance}% (need 45%)`);
+
+  const ev = expectedValue(c);
+  if (ev <= 0) reasons.push('EV is negative');
+
+  if (isParabolic(c)) reasons.push('Parabolic move');
+
+  if (ind.structure && structureBadge(ind.structure)) {
+    reasons.push(structureBadge(ind.structure).label);
+  }
+
+  const rc = hasRoomToRun(c);
+  if (rc && !rc.pass) reasons.push(rc.label);
+
+  if (reasons.length === 0) {
+    return { verdict: 'TRADE', reason: 'All checks passed', cls: 'trade' };
+  }
+  return { verdict: 'SKIP', reason: reasons[0], cls: 'skip' };
+}
+
+/* ============================================================
    WATCHLIST
 ============================================================ */
 function loadWatchlist() {
@@ -1590,7 +1645,7 @@ function findCoinLive(symbol, coinId) {
 }
 
 /* ============================================================
-   COIN CARD
+   COIN CARD — with verdict banner
 ============================================================ */
 function coinCardHTML(c, highlight) {
   const a = ch24(c), w = ch7(c), m = ch30(c);
@@ -1599,61 +1654,31 @@ function coinCardHTML(c, highlight) {
   const chance = estimateWinChance(c);
   const ev = expectedValue(c);
   const ind = getInd(c);
-  const parabolic = isParabolic(c);
   const watched = isWatched(c.symbol);
-  const structBadge = ind && ind.structure ? structureBadge(ind.structure) : null;
+  const verdict = tradeVerdict(c);
 
   let setupBadge = '';
   const isMom = isMomentumBurst(c);
   const isPull = isPullback(c);
-  const strongMom = ind && ind.momentum === 'strong';
-
-  if (isMom && strongMom) {
-    setupBadge = '<span class="sig-badge momentum-strong">⚡ Strong Momentum</span>';
-  } else if (isMom) {
-    setupBadge = '<span class="sig-badge momentum">🚀 Momentum</span>';
-  } else if (isPull) {
-    setupBadge = '<span class="sig-badge pullback">📉 Pullback</span>';
-  }
+  if (isMom) setupBadge = '<span class="sig-badge momentum">🚀 Momentum</span>';
+  if (isPull) setupBadge = '<span class="sig-badge pullback">📉 Pullback</span>';
 
   let trendBadge = '';
   if (ind) {
-    if (ind.trend === 'up' || ind.trend === 'up-partial') {
-      trendBadge = '<span class="trend-pill up">↗ UP</span>';
-    } else if (ind.trend === 'down' || ind.trend === 'down-partial') {
-      trendBadge = '<span class="trend-pill down">↘ DOWN</span>';
-    }
+    if (ind.trend === 'up' || ind.trend === 'up-partial') trendBadge = '<span class="trend-pill up">↗ UP</span>';
+    else if (ind.trend === 'down' || ind.trend === 'down-partial') trendBadge = '<span class="trend-pill down">↘ DOWN</span>';
   }
-
-  const volIcon = ind && ind.volatility === 'low' ? '📉'
-                : ind && ind.volatility === 'high' ? '🌊'
-                : ind && ind.volatility === 'medium' ? '〰️'
-                : '';
-
-  const volColor = ind && ind.volume === 'high' ? 'var(--green)'
-                 : ind && ind.volume === 'low' ? 'var(--red)'
-                 : 'var(--text)';
 
   const w7Display = has7d(c) ? `${w >= 0 ? '+' : ''}${w.toFixed(1)}%` : '—';
   const w7Class = has7d(c) ? (w >= 0 ? 'up' : 'down') : 'flat';
   const m30Display = has30d(c) ? `${m >= 0 ? '+' : ''}${m.toFixed(0)}%` : '—';
   const m30Class = has30d(c) ? (m >= 0 ? 'up' : 'down') : 'flat';
 
-  const parabolicStrip = parabolic ? `
-    <div class="parabolic-strip">
-      ⚠️ Up ${Math.max(ch24(c), ch7(c)).toFixed(0)}% — book Ch.10 warns these reverse hard
-    </div>` : '';
-
-  const structStrip = (!parabolic && structBadge) ? `
-    <div class="broken-strip">
-      ${structBadge.label} — market structure is against this trade
-    </div>` : '';
-
-  const roomCheck = hasRoomToRun(c);
-  const roomStrip = (!parabolic && !structBadge && roomCheck && !roomCheck.pass) ? `
-    <div class="broken-strip">
-      ${roomCheck.label} — skip or wait for pullback
-    </div>` : '';
+  const verdictBanner = `
+    <div class="verdict-banner ${verdict.cls}">
+      <span class="verdict-label">${verdict.verdict}</span>
+      <span class="verdict-reason">${verdict.reason}</span>
+    </div>`;
 
   const chanceBlock = highlight ? `
     <div class="chance-block" style="border-color:${chanceColor(chance)}33">
@@ -1661,15 +1686,11 @@ function coinCardHTML(c, highlight) {
       <div class="chance-label">win chance · EV <b style="color:${ev >= 0 ? 'var(--green)' : 'var(--red)'}">${ev >= 0 ? '+' : ''}$${ev.toFixed(2)}</b></div>
     </div>` : '';
 
-  const cardCls = `${highlight ? 'highlight' : ''} ${parabolic ? 'parabolic' : ''} ${(!parabolic && (structBadge || (roomCheck && !roomCheck.pass))) ? 'broken' : ''}`;
-
   return `
-    <div class="coin-card ${cardCls}"
+    <div class="coin-card ${highlight ? 'highlight' : ''}"
          data-symbol="${esc(c.symbol)}" data-id="${esc(c.id)}"
          style="cursor:pointer">
-      ${parabolicStrip}
-      ${structStrip}
-      ${roomStrip}
+      ${verdictBanner}
       <div class="top">
         <button class="star-btn ${watched ? 'watched' : ''}"
                 data-symbol="${esc(c.symbol)}"
@@ -1686,17 +1707,14 @@ function coinCardHTML(c, highlight) {
         </div>
       </div>
 
-      ${(setupBadge || trendBadge) ? `
-        <div class="sig-row">
-          ${setupBadge}${trendBadge}
-        </div>` : ''}
+      ${(setupBadge || trendBadge) ? `<div class="sig-row">${setupBadge}${trendBadge}</div>` : ''}
 
       ${chanceBlock}
 
       <div class="metrics">
         <div>7d <span class="${w7Class}">${w7Display}</span></div>
         <div>30d <span class="${m30Class}">${m30Display}</span></div>
-        <div>Vol <span style="color:${volColor}">${money(c.total_volume)}</span>${volIcon ? ' ' + volIcon : ''}</div>
+        <div>Vol <span>${money(c.total_volume)}</span></div>
       </div>
 
       <div class="score-row">
@@ -1729,10 +1747,10 @@ function renderCoinList() {
     const base = allCoins.filter(c => isMomentumBurst(c) || isPullback(c));
     const passing = base.filter(c => {
       const ind = getInd(c);
-      if (!ind) return true;                       // not enriched yet — keep for now
-      if (ind.structure && structureBadge(ind.structure)) return false; // structure broken
+      if (!ind) return true;
+      if (ind.structure && structureBadge(ind.structure)) return false;
       const rc = hasRoomToRun(c);
-      if (rc && !rc.pass) return false;            // no room to run
+      if (rc && !rc.pass) return false;
       return true;
     });
     winnersFilteredCount = base.length - passing.length;
@@ -1751,7 +1769,7 @@ function renderCoinList() {
   if (currentFilter === 'winners') {
     explainer = `
       <div class="banner" style="border-left-color:var(--amber);margin-bottom:16px">
-        <b>Winners are pre-filtered.</b> Only coins that pass structure and room-to-run checks are shown. <b>Not a guarantee.</b> Run your 7 checks before entering.
+        <b>Winners are pre-filtered.</b> Only coins that pass structure and room-to-run checks are shown. Each card shows a TRADE or SKIP verdict at the top.
       </div>`;
   } else if (currentFilter === 'confluence') {
     explainer = `
@@ -2873,6 +2891,7 @@ function renderDetailStats(coin) {
   const stable = isStablecoin(coin);
   const ind = getInd(coin);
   const parabolic = isParabolic(coin);
+  const verdict = tradeVerdict(coin);
 
   const tags = [];
   if (stable) tags.push('<span class="tag stable">Stablecoin</span>');
@@ -2906,9 +2925,14 @@ function renderDetailStats(coin) {
     : roomCheck.pass ? 'var(--green)'
     : 'var(--red)';
 
+  const verdictText = verdict.verdict === 'TRADE' ? '✅ TRADE' : verdict.verdict === 'SKIP' ? '❌ SKIP' : '⏳ WAIT';
+  const verdictColor = verdict.verdict === 'TRADE' ? 'var(--green)' : verdict.verdict === 'SKIP' ? 'var(--red)' : 'var(--muted)';
+
   $('dStats').innerHTML = `
     <div class="block">
-      <div style="margin-bottom:10px">${tags.join('')}${trendBadge}</div>
+      <div class="bd-row"><span class="k">Verdict</span><span class="v" style="color:${verdictColor}">${verdictText}</span></div>
+      <div class="bd-row"><span class="k">Reason</span><span class="v" style="color:var(--muted);font-size:0.75rem">${verdict.reason}</span></div>
+      <div style="margin:10px 0">${tags.join('')}${trendBadge}</div>
       <div class="bd-row"><span class="k">Timeframe</span><span class="v">${tfLabel}</span></div>
       <div class="bd-row"><span class="k">24h change</span><span class="v ${a >= 0 ? 'up' : 'down'}">${a >= 0 ? '+' : ''}${a.toFixed(2)}%</span></div>
       <div class="bd-row"><span class="k">7d change</span><span class="v ${has7d(coin) ? (w >= 0 ? 'up' : 'down') : ''}">${w7Display}</span></div>
