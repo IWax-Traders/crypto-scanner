@@ -771,8 +771,8 @@ function money(n) {
 }
 function price(n) {
   if (n == null) return '—';
-  if (n >= 1000) return '$' + n.toLocaleString(undefined, { maximumFractionDigits: 0 });
-  if (n >= 1) return '$' + n.toLocaleString(undefined, { maximumFractionDigits: 2 });
+  if (n >= 1000) return '$' + n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  if (n >= 1) return '$' + n.toLocaleString(undefined, { minimumFractionDigits: 4, maximumFractionDigits: 4 });
   if (n >= 0.01) return '$' + n.toFixed(4);
   return '$' + n.toFixed(8);
 }
@@ -939,7 +939,13 @@ function tradeVerdict(c) {
   const ind = getInd(c);
   if (!ind) return { verdict: 'WAIT', reason: 'Still loading…', cls: 'loading' };
 
-  const reasons = [];  const isMom = isMomentumBurst(c); const isPull = isPullback(c); if (!isMom && !isPull) {   reasons.push('No longer a valid Momentum or Pullback setup'); }
+  const reasons = [];
+
+  const isMom = isMomentumBurst(c);
+  const isPull = isPullback(c);
+  if (!isMom && !isPull) {
+    reasons.push('No longer a valid Momentum or Pullback setup');
+  }
 
   const chance = estimateWinChance(c);
   if (chance < 45) reasons.push(`Win chance ${chance}% (need 45%)`);
@@ -1914,20 +1920,35 @@ function autoCloseTrades({ silent = false } = {}) {
     if (t.status !== 'open') return;
     const c = findCoinLive(t.coin, t.coinId);
     if (!c) return;
-    const live = c.current_price;
-    if (live <= t.stop) {
+
+    // Update high/low memory since trade opened
+    if (t.highSinceOpen == null) t.highSinceOpen = c.high_24h;
+    if (t.lowSinceOpen == null) t.lowSinceOpen = c.low_24h;
+    t.highSinceOpen = Math.max(t.highSinceOpen, c.high_24h);
+    t.lowSinceOpen = Math.min(t.lowSinceOpen, c.low_24h);
+    changed = true;
+
+    const hitTarget = t.highSinceOpen >= t.target;
+    const hitStop = t.lowSinceOpen <= t.stop;
+
+    if (hitStop && hitTarget) {
+      // Both hit since last check — assume worst case: stop hit first
       t.exit = t.stop; t.status = 'loss';
       t.closeDate = new Date().toISOString(); t.autoClosed = 'stop';
       t.pnl = computePnl(t, t.stop);
       t.pnlPct = ((t.stop - t.entry) / t.entry) * 100;
-      changed = true;
       if (s.onClose && !silent) fireAlert('loss', `🛑 ${t.coin} stopped out`, `Loss ${money(Math.abs(t.pnl))}`, 'trade-' + t.coin);
-    } else if (live >= t.target) {
+    } else if (hitStop) {
+      t.exit = t.stop; t.status = 'loss';
+      t.closeDate = new Date().toISOString(); t.autoClosed = 'stop';
+      t.pnl = computePnl(t, t.stop);
+      t.pnlPct = ((t.stop - t.entry) / t.entry) * 100;
+      if (s.onClose && !silent) fireAlert('loss', `🛑 ${t.coin} stopped out`, `Loss ${money(Math.abs(t.pnl))}`, 'trade-' + t.coin);
+    } else if (hitTarget) {
       t.exit = t.target; t.status = 'win';
       t.closeDate = new Date().toISOString(); t.autoClosed = 'target';
       t.pnl = computePnl(t, t.target);
       t.pnlPct = ((t.target - t.entry) / t.entry) * 100;
-      changed = true;
       if (s.onClose && !silent) fireAlert('win', `✅ ${t.coin} hit target`, `Profit +${money(t.pnl)}`, 'trade-' + t.coin);
     }
   });
@@ -2132,7 +2153,9 @@ function addTrade() {
     coin, coinId: live ? live.id : null,
     setup, entry, stop, target, size, notes,
     status: 'open', exit: null, pnl: null,
-    alertedStop: false, alertedTarget: false
+    alertedStop: false, alertedTarget: false,
+    highSinceOpen: live ? live.high_24h : entry,
+    lowSinceOpen: live ? live.low_24h : entry
   });
   saveTrades(trades);
   fireAlert('info', `📝 ${coin} logged`, `${setup} · Entry ${price(entry)}`, 'journal');
@@ -2799,16 +2822,24 @@ function renderChart(coin, series) {
   }
   const w = Math.max(280, container.clientWidth - 16);
   const h = 320;
+  const p = coin.current_price;
+  const precision = p < 0.01 ? 8 : (p < 1 ? 4 : 4);
+  const minMove = Math.pow(10, -precision);
   try {
     currentChart = LightweightCharts.createChart(container, {
       width: w, height: h,
       layout: { background: { color: '#131720' }, textColor: '#8a94a6', fontSize: 11 },
       grid: { vertLines: { color: '#1a1f2b' }, horzLines: { color: '#1a1f2b' } },
       rightPriceScale: { borderColor: '#222838' },
-      timeScale: { borderColor: '#222838', timeVisible: (currentPeriod === '1h' || (typeof currentPeriod === 'number' && currentPeriod <= 7)) }
+      timeScale: {
+        borderColor: '#222838',
+        timeVisible: true,
+        secondsVisible: false
+      }
     });
     currentChartSeries = currentChart.addAreaSeries({
-      lineColor: '#3b82f6', topColor: 'rgba(59,130,246,0.35)', bottomColor: 'rgba(59,130,246,0.02)', lineWidth: 2
+      lineColor: '#3b82f6', topColor: 'rgba(59,130,246,0.35)', bottomColor: 'rgba(59,130,246,0.02)', lineWidth: 2,
+      priceFormat: { type: 'price', precision: precision, minMove: minMove }
     });
     currentChartSeries.setData(series);
     currentChart.timeScale().fitContent();
@@ -2824,9 +2855,9 @@ function renderChart(coin, series) {
   legendEl.innerHTML = '';
   if (t) {
     try {
-      currentChartSeries.createPriceLine({ price: t.entry, color: '#3b82f6', lineWidth: 1, lineStyle: LightweightCharts.LineStyle.Dashed, axisLabelVisible: true, title: 'Entry' });
-      currentChartSeries.createPriceLine({ price: t.stop, color: '#ef4444', lineWidth: 1, lineStyle: LightweightCharts.LineStyle.Dashed, axisLabelVisible: true, title: 'Stop' });
-      currentChartSeries.createPriceLine({ price: t.target, color: '#22c55e', lineWidth: 1, lineStyle: LightweightCharts.LineStyle.Dashed, axisLabelVisible: true, title: 'Target' });
+      currentChartSeries.createPriceLine({ price: t.entry, color: '#3b82f6', lineWidth: 1, lineStyle: LightweightCharts.LineStyle.Dashed, axisLabelVisible: true, title: 'Entry', priceFormat: { type: 'price', precision: precision, minMove: minMove } });
+      currentChartSeries.createPriceLine({ price: t.stop, color: '#ef4444', lineWidth: 1, lineStyle: LightweightCharts.LineStyle.Dashed, axisLabelVisible: true, title: 'Stop', priceFormat: { type: 'price', precision: precision, minMove: minMove } });
+      currentChartSeries.createPriceLine({ price: t.target, color: '#22c55e', lineWidth: 1, lineStyle: LightweightCharts.LineStyle.Dashed, axisLabelVisible: true, title: 'Target', priceFormat: { type: 'price', precision: precision, minMove: minMove } });
     } catch (e) {}
     legendEl.innerHTML = `
       <div class="item"><span class="swatch" style="background:#3b82f6"></span>Entry ${price(t.entry)}</div>
