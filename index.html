@@ -712,6 +712,7 @@ let currentFilter = 'winners';
 let storageWarned = false;
 let currentTimeframe = '1d';
 let verdictExpanded = false;
+let winnersFilteredCount = 0;
 
 const $ = id => document.getElementById(id);
 
@@ -773,7 +774,6 @@ function has30d(c) { return c.price_change_percentage_30d_in_currency != null; }
 
 /* ============================================================
    MARKET STRUCTURE
-   Swing detection → trend (3 swings) → BOS / CHoCH → position
 ============================================================ */
 function findSwings(candles, lookback = 2) {
   const highs = [];
@@ -802,7 +802,6 @@ function classifyStructure(candles) {
   if (!candles || candles.length < 30) return empty;
 
   const { highs, lows } = findSwings(candles, 2);
-
   if (highs.length < 3 || lows.length < 3) return empty;
 
   const h1 = highs[highs.length - 1];
@@ -889,7 +888,6 @@ function structureBadge(s) {
 
 /* ============================================================
    ROOM TO RUN — filter #7
-   Skip if Premium, resistance too close, or at 7-day high
 ============================================================ */
 function hasRoomToRun(c) {
   const ind = getInd(c);
@@ -1230,7 +1228,6 @@ async function computeIndicators(coin, timeframe) {
     const change7d = n >= 8 ? ((dailyCloses[n-1] - dailyCloses[n-8]) / dailyCloses[n-8]) * 100 : null;
     const change30d = n >= 31 ? ((dailyCloses[n-1] - dailyCloses[n-31]) / dailyCloses[n-31]) * 100 : null;
 
-    // 7-day high — used for "room to run" filter
     const last7 = dailyCandles.slice(-7);
     const high7d = last7.length ? Math.max(...last7.map(c => c.high)) : null;
 
@@ -1728,7 +1725,19 @@ function renderCoinList() {
     list = allCoins.filter(c => wl.includes(c.symbol.toLowerCase()));
   } else if (currentFilter === 'momentum') list = allCoins.filter(isMomentumBurst);
   else if (currentFilter === 'pullback') list = allCoins.filter(isPullback);
-  else if (currentFilter === 'winners') list = allCoins.filter(c => isMomentumBurst(c) || isPullback(c));
+  else if (currentFilter === 'winners') {
+    const base = allCoins.filter(c => isMomentumBurst(c) || isPullback(c));
+    const passing = base.filter(c => {
+      const ind = getInd(c);
+      if (!ind) return true;                       // not enriched yet — keep for now
+      if (ind.structure && structureBadge(ind.structure)) return false; // structure broken
+      const rc = hasRoomToRun(c);
+      if (rc && !rc.pass) return false;            // no room to run
+      return true;
+    });
+    winnersFilteredCount = base.length - passing.length;
+    list = passing;
+  }
   else if (currentFilter === 'confluence') list = allCoins.filter(c => !isStablecoin(c) && confluenceCount(c) >= 3);
   else list = allCoins;
 
@@ -1742,7 +1751,7 @@ function renderCoinList() {
   if (currentFilter === 'winners') {
     explainer = `
       <div class="banner" style="border-left-color:var(--amber);margin-bottom:16px">
-        <b>What the % means.</b> An estimate from historical setup rates. <b>Not a guarantee.</b> ⚠️ If a red <b>structure</b> or <b>room-to-run</b> strip shows, skip it.
+        <b>Winners are pre-filtered.</b> Only coins that pass structure and room-to-run checks are shown. <b>Not a guarantee.</b> Run your 7 checks before entering.
       </div>`;
   } else if (currentFilter === 'confluence') {
     explainer = `
@@ -1759,7 +1768,9 @@ function renderCoinList() {
   if (!list.length) {
     const msgs = {
       watchlist: ['⭐', 'No coins watched yet.', 'Tap the ☆ on any coin card to add it here.'],
-      winners: ['🏆', 'No qualified setups right now.', 'This is the correct result most of the time. Wait for the setup.'],
+      winners: winnersFilteredCount > 0
+        ? ['🚫', `${winnersFilteredCount} setup${winnersFilteredCount !== 1 ? 's' : ''} filtered out`, 'All failed structure or room-to-run. Wait for pullbacks.']
+        : ['🏆', 'No qualified setups right now.', 'This is the correct result most of the time. Wait for the setup.'],
       momentum: ['🚀', 'No momentum setups.', 'Needs a coin up 3–8% today with a positive 7-day trend.'],
       pullback: ['📉', 'No pullback setups.', 'Needs a coin up 12%+ this week that dipped 2–5% today.'],
       confluence: ['✨', 'No confluence setups yet.', 'Coins must meet 3 of 5 conditions.'],
