@@ -939,7 +939,7 @@ function tradeVerdict(c) {
   const ind = getInd(c);
   if (!ind) return { verdict: 'WAIT', reason: 'Still loading…', cls: 'loading' };
 
-  const reasons = [];
+  const reasons = [];  const isMom = isMomentumBurst(c); const isPull = isPullback(c); if (!isMom && !isPull) {   reasons.push('No longer a valid Momentum or Pullback setup'); }
 
   const chance = estimateWinChance(c);
   if (chance < 45) reasons.push(`Win chance ${chance}% (need 45%)`);
