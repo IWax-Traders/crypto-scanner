@@ -133,6 +133,9 @@
     font-size: 0.72rem; font-weight: 600;
     border-bottom: 1px solid rgba(239,68,68,0.2);
   }
+  .broken-strip + .broken-strip {
+    margin-top: -12px;
+  }
 
   .tag { font-size: 0.68rem; padding: 3px 9px; border-radius: 6px; font-weight: 600; letter-spacing: 0.2px; }
   .tag.momentum { background: rgba(245,158,11,0.12); color: #fbbf24; }
@@ -772,8 +775,6 @@ function has30d(c) { return c.price_change_percentage_30d_in_currency != null; }
    MARKET STRUCTURE
    Swing detection → trend (3 swings) → BOS / CHoCH → position
 ============================================================ */
-
-// CHANGE 1: lookback reduced from 3 → 2 (looser swing detection)
 function findSwings(candles, lookback = 2) {
   const highs = [];
   const lows = [];
@@ -792,9 +793,6 @@ function findSwings(candles, lookback = 2) {
   return { highs, lows };
 }
 
-// CHANGE 2: 3-swing trend detection (was 2-swing)
-// CHANGE 3: BOS window extended from 30 → 60 candles
-// CHANGE 4: default 'neutral' (was 'range')
 function classifyStructure(candles) {
   const empty = {
     trend: 'unknown', bos: null, choch: null, position: 'unknown',
@@ -805,7 +803,6 @@ function classifyStructure(candles) {
 
   const { highs, lows } = findSwings(candles, 2);
 
-  // CHANGE 2: require 3 swings
   if (highs.length < 3 || lows.length < 3) return empty;
 
   const h1 = highs[highs.length - 1];
@@ -815,7 +812,6 @@ function classifyStructure(candles) {
   const l2 = lows[lows.length - 2];
   const l3 = lows[lows.length - 3];
 
-  // CHANGE 2: trend detection uses three swing comparisons
   const higherHighs = [h1.price > h2.price, h2.price > h3.price];
   const higherLows  = [l1.price > l2.price, l2.price > l3.price];
   const lowerHighs  = [h1.price < h2.price, h2.price < h3.price];
@@ -824,7 +820,6 @@ function classifyStructure(candles) {
   const upScore   = higherHighs.filter(Boolean).length + higherLows.filter(Boolean).length;
   const downScore = lowerHighs.filter(Boolean).length + lowerLows.filter(Boolean).length;
 
-  // CHANGE 4: default is 'neutral' (was 'range')
   let trend = 'neutral';
   if (upScore >= 3 && upScore > downScore) trend = 'up';
   else if (downScore >= 3 && downScore > upScore) trend = 'down';
@@ -834,7 +829,6 @@ function classifyStructure(candles) {
   const last = candles[candles.length - 1];
   const price = last.close;
 
-  // CHANGE 3: BOS window extended from 30 → 60 candles
   const recentThreshold = candles.length - 60;
   let bos = null;
   for (let i = highs.length - 1; i >= 0; i--) {
@@ -876,7 +870,7 @@ function structureMultiplier(s) {
   let m = 1.0;
   if (s.trend === 'up')          m *= 1.12;
   else if (s.trend === 'down')   m *= 0.60;
-  else if (s.trend === 'neutral') m *= 0.85;   // was 'range', now 'neutral'
+  else if (s.trend === 'neutral') m *= 0.85;
   if (s.bos === 'bull') m *= 1.06;
   if (s.bos === 'bear') m *= 0.88;
   if (s.choch === 'bear') m *= 0.72;
@@ -891,6 +885,28 @@ function structureBadge(s) {
   if (s.choch === 'bear') return { label: '⚠️ Structure broke down', cls: 'broken' };
   if (s.trend === 'down') return { label: '📐 Downtrend', cls: 'broken' };
   return null;
+}
+
+/* ============================================================
+   ROOM TO RUN — filter #7
+   Skip if Premium, resistance too close, or at 7-day high
+============================================================ */
+function hasRoomToRun(c) {
+  const ind = getInd(c);
+  if (!ind || !ind.structure || ind.high7d == null) return null;
+  const s = ind.structure;
+  const price = c.current_price;
+
+  if (s.position === 'premium') {
+    return { pass: false, label: '🔺 Premium — near top of range' };
+  }
+  if (s.distToResistance != null && s.distToResistance < 8) {
+    return { pass: false, label: `⚠️ Resistance only ${s.distToResistance.toFixed(1)}% away` };
+  }
+  if (price >= ind.high7d * 0.985) {
+    return { pass: false, label: '📈 At 7-day high — no room to run' };
+  }
+  return { pass: true, label: '✅ Room to run' };
 }
 
 /* ============================================================
@@ -1214,6 +1230,10 @@ async function computeIndicators(coin, timeframe) {
     const change7d = n >= 8 ? ((dailyCloses[n-1] - dailyCloses[n-8]) / dailyCloses[n-8]) * 100 : null;
     const change30d = n >= 31 ? ((dailyCloses[n-1] - dailyCloses[n-31]) / dailyCloses[n-31]) * 100 : null;
 
+    // 7-day high — used for "room to run" filter
+    const last7 = dailyCandles.slice(-7);
+    const high7d = last7.length ? Math.max(...last7.map(c => c.high)) : null;
+
     const structure = classifyStructure(dailyCandles);
 
     let closes, volumes;
@@ -1274,13 +1294,14 @@ async function computeIndicators(coin, timeframe) {
       trend, momentum, volume, volatility, dailyVol, timeframe,
       change7d, change30d,
       structure,
+      high7d,
       ts: Date.now()
     };
   } catch (e) {
     return {
       trend: 'neutral', momentum: 'neutral', volume: 'neutral',
       volatility: 'unknown', dailyVol: null, timeframe,
-      structure: null, ts: Date.now(), error: true
+      structure: null, high7d: null, ts: Date.now(), error: true
     };
   }
 }
@@ -1631,13 +1652,19 @@ function coinCardHTML(c, highlight) {
       ${structBadge.label} — market structure is against this trade
     </div>` : '';
 
+  const roomCheck = hasRoomToRun(c);
+  const roomStrip = (!parabolic && !structBadge && roomCheck && !roomCheck.pass) ? `
+    <div class="broken-strip">
+      ${roomCheck.label} — skip or wait for pullback
+    </div>` : '';
+
   const chanceBlock = highlight ? `
     <div class="chance-block" style="border-color:${chanceColor(chance)}33">
       <div class="chance-num" style="color:${chanceColor(chance)}">${chance}%</div>
       <div class="chance-label">win chance · EV <b style="color:${ev >= 0 ? 'var(--green)' : 'var(--red)'}">${ev >= 0 ? '+' : ''}$${ev.toFixed(2)}</b></div>
     </div>` : '';
 
-  const cardCls = `${highlight ? 'highlight' : ''} ${parabolic ? 'parabolic' : ''} ${(!parabolic && structBadge) ? 'broken' : ''}`;
+  const cardCls = `${highlight ? 'highlight' : ''} ${parabolic ? 'parabolic' : ''} ${(!parabolic && (structBadge || (roomCheck && !roomCheck.pass))) ? 'broken' : ''}`;
 
   return `
     <div class="coin-card ${cardCls}"
@@ -1645,6 +1672,7 @@ function coinCardHTML(c, highlight) {
          style="cursor:pointer">
       ${parabolicStrip}
       ${structStrip}
+      ${roomStrip}
       <div class="top">
         <button class="star-btn ${watched ? 'watched' : ''}"
                 data-symbol="${esc(c.symbol)}"
@@ -1714,7 +1742,7 @@ function renderCoinList() {
   if (currentFilter === 'winners') {
     explainer = `
       <div class="banner" style="border-left-color:var(--amber);margin-bottom:16px">
-        <b>What the % means.</b> An estimate from historical setup rates. <b>Not a guarantee.</b> ⚠️ If a red <b>structure</b> strip shows, the market structure is against this trade — skip it.
+        <b>What the % means.</b> An estimate from historical setup rates. <b>Not a guarantee.</b> ⚠️ If a red <b>structure</b> or <b>room-to-run</b> strip shows, skip it.
       </div>`;
   } else if (currentFilter === 'confluence') {
     explainer = `
@@ -2038,6 +2066,12 @@ function autoFillTrade() {
   if (ind && ind.structure) {
     const sb = structureBadge(ind.structure);
     if (sb) structNote = `<br><span style="color:#f87171">${sb.label} — market structure against this trade.</span>`;
+  }
+  const rc = hasRoomToRun(c);
+  if (rc && !rc.pass) {
+    structNote += `<br><span style="color:#f87171">${rc.label} — skip or wait for pullback.</span>`;
+  } else if (rc && rc.pass) {
+    structNote += `<br><span style="color:var(--green)">✅ Room to run.</span>`;
   }
   preview.innerHTML = `
     <b>${esc(c.name)}</b> · live ${price(entry)}<br>
@@ -2778,7 +2812,6 @@ function renderChart(coin, series) {
   window.addEventListener('resize', window._chartResizeHandler);
 }
 
-// CHANGE 4 follow-through: label "Ranging" → "Neutral / mixed"
 function structureBlockHTML(structure) {
   if (!structure || structure.trend === 'unknown') {
     return `
@@ -2854,6 +2887,14 @@ function renderDetailStats(coin) {
   const w7Display = has7d(coin) ? `${w >= 0 ? '+' : ''}${w.toFixed(2)}%` : '—';
   const m30Display = has30d(coin) ? `${m >= 0 ? '+' : ''}${m.toFixed(2)}%` : '—';
 
+  const roomCheck = hasRoomToRun(coin);
+  const roomText = !roomCheck ? '—'
+    : roomCheck.pass ? '✅ Yes'
+    : '❌ ' + roomCheck.label;
+  const roomColor = !roomCheck ? 'var(--muted)'
+    : roomCheck.pass ? 'var(--green)'
+    : 'var(--red)';
+
   $('dStats').innerHTML = `
     <div class="block">
       <div style="margin-bottom:10px">${tags.join('')}${trendBadge}</div>
@@ -2868,6 +2909,7 @@ function renderDetailStats(coin) {
       <div class="bd-row"><span class="k">Confluence score</span><span class="v" style="color:${scoreColor(s)}">${s} / 100</span></div>
       <div class="bd-row"><span class="k">Estimated win chance</span><span class="v" style="color:${chanceColor(chance)}">${chance}%</span></div>
       <div class="bd-row"><span class="k">Expected value / $1 risked</span><span class="v" style="color:${ev >= 0 ? 'var(--green)' : 'var(--red)'}">${ev >= 0 ? '+' : ''}$${ev.toFixed(2)}</span></div>
+      <div class="bd-row"><span class="k">Room to run</span><span class="v" style="color:${roomColor}">${roomText}</span></div>
     </div>
     ${structureBlockHTML(ind && ind.structure)}`;
 }
