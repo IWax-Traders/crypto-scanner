@@ -90,20 +90,27 @@
     letter-spacing: 0.3px;
     border-bottom: 1px solid rgba(255,255,255,0.06);
   }
-  .verdict-banner.trade {
-    background: rgba(34,197,94,0.15);
-    color: #4ade80;
-  }
-  .verdict-banner.skip {
-    background: rgba(239,68,68,0.12);
-    color: #fca5a5;
-  }
-  .verdict-banner.loading {
-    background: var(--surface-2);
-    color: var(--muted);
-  }
+  .verdict-banner.trade { background: rgba(34,197,94,0.15); color: #4ade80; }
+  .verdict-banner.skip { background: rgba(239,68,68,0.12); color: #fca5a5; }
+  .verdict-banner.loading { background: var(--surface-2); color: var(--muted); }
   .verdict-label { font-size: 0.95rem; }
   .verdict-reason { font-size: 0.72rem; font-weight: 500; opacity: 0.85; text-align: right; }
+
+  .gate-banner {
+    display: flex; align-items: center; gap: 10px;
+    padding: 12px 14px; margin-bottom: 14px;
+    border-radius: var(--radius-sm);
+    font-size: 0.8rem; line-height: 1.5;
+    border: 1px solid var(--border);
+    background: var(--surface);
+  }
+  .gate-banner.warn {
+    border-color: rgba(245,158,11,0.4);
+    background: rgba(245,158,11,0.08);
+    color: #fbbf24;
+  }
+  .gate-banner .gate-icon { font-size: 1.2rem; flex-shrink: 0; }
+  .gate-banner .gate-text { flex: 1; min-width: 0; }
 
   .star-btn {
     width: 32px; height: 32px; padding: 0;
@@ -128,13 +135,6 @@
   .trend-pill.up { background: rgba(34,197,94,0.12); color: #4ade80; }
   .trend-pill.down { background: rgba(239,68,68,0.12); color: #f87171; }
   .trend-pill.neutral { background: rgba(138,148,166,0.12); color: #8a94a6; }
-
-  .struct-pill {
-    font-size: 0.68rem; padding: 3px 8px; border-radius: 5px;
-    font-weight: 700; letter-spacing: 0.3px;
-  }
-  .struct-pill.broken { background: rgba(239,68,68,0.15); color: #f87171; }
-  .struct-pill.range { background: rgba(138,148,166,0.12); color: #8a94a6; }
 
   .chance-block {
     display: flex; align-items: center; gap: 12px;
@@ -218,10 +218,10 @@
 
   .verdict-reasons { display: none; padding: 0 16px 14px; border-top: 1px solid rgba(255,255,255,0.05); }
   .verdict-card.expanded .verdict-reasons { display: block; padding-top: 12px; }
-  .verdict-reason { display: flex; align-items: flex-start; gap: 8px; padding: 6px 0; font-size: 0.78rem; line-height: 1.5; color: #c8d0dc; }
-  .verdict-reason .r-icon { flex-shrink: 0; font-size: 0.85rem; width: 16px; text-align: center; }
-  .verdict-reason .r-text { flex: 1; min-width: 0; }
-  .verdict-reason .r-text b { color: var(--text); }
+  .verdict-reason-row { display: flex; align-items: flex-start; gap: 8px; padding: 6px 0; font-size: 0.78rem; line-height: 1.5; color: #c8d0dc; }
+  .verdict-reason-row .r-icon { flex-shrink: 0; font-size: 0.85rem; width: 16px; text-align: center; }
+  .verdict-reason-row .r-text { flex: 1; min-width: 0; }
+  .verdict-reason-row .r-text b { color: var(--text); }
   .verdict-note { margin-top: 10px; font-size: 0.68rem; color: var(--dim); font-style: italic; text-align: center; }
 
   .market-banner {
@@ -402,6 +402,7 @@
 <main>
 
   <section class="view active" id="view-scan">
+    <div id="personalGate"></div>
     <div id="verdictSlot"></div>
     <div id="marketBannerSlot"></div>
     <div class="tf-row">
@@ -652,10 +653,6 @@
 </div>
 
 <script>
-/* ============================================================
-   DATA SOURCE: BINANCE
-   Universe: every liquid USDT pair (>= $1M daily volume)
-============================================================ */
 const BINANCE_TICKER_URL = 'https://api.binance.com/api/v3/ticker/24hr';
 const MIN_VOLUME_USD = 1_000_000;
 
@@ -708,9 +705,6 @@ const EXCLUDED_BASES = new Set([
   'BKRW','PAXG','XAUT'
 ]);
 
-/* ============================================================
-   STATE
-============================================================ */
 const TRADES_KEY = 'crypto_journal_v2';
 const SETTINGS_KEY = 'crypto_settings_v1';
 const ALERT_SETTINGS_KEY = 'crypto_alert_settings_v1';
@@ -741,9 +735,6 @@ let winnersFilteredCount = 0;
 
 const $ = id => document.getElementById(id);
 
-/* ============================================================
-   HELPERS
-============================================================ */
 const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, m => ({
   '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
 }[m]));
@@ -797,9 +788,6 @@ function ch30(c) { return c.price_change_percentage_30d_in_currency ?? 0; }
 function has7d(c) { return c.price_change_percentage_7d_in_currency != null; }
 function has30d(c) { return c.price_change_percentage_30d_in_currency != null; }
 
-/* ============================================================
-   MARKET STRUCTURE
-============================================================ */
 function findSwings(candles, lookback = 2) {
   const highs = [];
   const lows = [];
@@ -884,8 +872,7 @@ function classifyStructure(candles) {
     lastHigh: h1.price,
     lastLow: l1.price,
     distToResistance,
-    distToSupport,
-    swingCounts: { highs: highs.length, lows: lows.length }
+    distToSupport
   };
 }
 
@@ -911,30 +898,20 @@ function structureBadge(s) {
   return null;
 }
 
-/* ============================================================
-   ROOM TO RUN — filter #7
-============================================================ */
 function hasRoomToRun(c) {
   const ind = getInd(c);
   if (!ind || !ind.structure || ind.high7d == null) return null;
   const s = ind.structure;
   const price = c.current_price;
 
-  if (s.position === 'premium') {
-    return { pass: false, label: '🔺 Premium — near top of range' };
-  }
+  if (s.position === 'premium') return { pass: false, label: '🔺 Premium — near top of range' };
   if (s.distToResistance != null && s.distToResistance < 8) {
     return { pass: false, label: `⚠️ Resistance only ${s.distToResistance.toFixed(1)}% away` };
   }
-  if (price >= ind.high7d * 0.985) {
-    return { pass: false, label: '📈 At 7-day high — no room to run' };
-  }
+  if (price >= ind.high7d * 0.985) return { pass: false, label: '📈 At 7-day high' };
   return { pass: true, label: '✅ Room to run' };
 }
 
-/* ============================================================
-   TRADE VERDICT — one-word answer
-============================================================ */
 function tradeVerdict(c) {
   const ind = getInd(c);
   if (!ind) return { verdict: 'WAIT', reason: 'Still loading…', cls: 'loading' };
@@ -943,9 +920,7 @@ function tradeVerdict(c) {
 
   const isMom = isMomentumBurst(c);
   const isPull = isPullback(c);
-  if (!isMom && !isPull) {
-    reasons.push('No longer a valid Momentum or Pullback setup');
-  }
+  if (!isMom && !isPull) reasons.push('No longer a valid setup');
 
   const chance = estimateWinChance(c);
   if (chance < 45) reasons.push(`Win chance ${chance}% (need 45%)`);
@@ -962,19 +937,11 @@ function tradeVerdict(c) {
   const rc = hasRoomToRun(c);
   if (rc && !rc.pass) reasons.push(rc.label);
 
-  if (reasons.length === 0) {
-    return { verdict: 'TRADE', reason: 'All checks passed', cls: 'trade' };
-  }
+  if (reasons.length === 0) return { verdict: 'TRADE', reason: 'All checks passed', cls: 'trade' };
   return { verdict: 'SKIP', reason: reasons[0], cls: 'skip' };
 }
 
-/* ============================================================
-   WATCHLIST
-============================================================ */
-function loadWatchlist() {
-  const w = safeGet(WATCHLIST_KEY, []);
-  return Array.isArray(w) ? w : [];
-}
+function loadWatchlist() { const w = safeGet(WATCHLIST_KEY, []); return Array.isArray(w) ? w : []; }
 function saveWatchlist(w) { safeSet(WATCHLIST_KEY, w); }
 function isWatched(symbol) { return loadWatchlist().includes(String(symbol).toLowerCase()); }
 function toggleWatch(symbol) {
@@ -985,9 +952,6 @@ function toggleWatch(symbol) {
   w.push(s); saveWatchlist(w); return true;
 }
 
-/* ============================================================
-   COOLDOWN
-============================================================ */
 function loadCooldown() { return safeGet(COOLDOWN_KEY, { active: false, until: null, reason: null }); }
 function saveCooldown(c) { safeSet(COOLDOWN_KEY, c); }
 function isCooldownActive() {
@@ -1010,9 +974,6 @@ function cooldownTimeLeft() {
   return Math.max(0, c.until - Date.now());
 }
 
-/* ============================================================
-   MARKET REGIME
-============================================================ */
 function computeMarketRegime() {
   if (!allCoins.length) return null;
   const btc = allCoins.find(c => c.symbol.toLowerCase() === 'btc');
@@ -1026,17 +987,17 @@ function computeMarketRegime() {
   if (btc7 > 5 && breadth >= 60) {
     state = 'bull'; icon = '🌞';
     title = 'Bullish market';
-    desc = `BTC +${btc7.toFixed(1)}% on the week · ${breadth.toFixed(0)}% of top 30 up. Trend signals more reliable.`;
+    desc = `BTC +${btc7.toFixed(1)}% · ${breadth.toFixed(0)}% of top 30 up. Trend signals reliable.`;
     cls = 'bull';
   } else if (btc7 < -5 || breadth < 30) {
     state = 'bear'; icon = '🌧️';
     title = 'Bearish market';
-    desc = `BTC ${btc7.toFixed(1)}% this week · only ${breadth.toFixed(0)}% of top 30 up. Signals often fail here.`;
+    desc = `BTC ${btc7.toFixed(1)}% · only ${breadth.toFixed(0)}% of top 30 up. Signals often fail.`;
     cls = 'bear';
   } else {
     state = 'neutral'; icon = '⛅';
     title = 'Neutral / choppy';
-    desc = `BTC ${btc7 >= 0 ? '+' : ''}${btc7.toFixed(1)}% this week · ${breadth.toFixed(0)}% of top 30 up. Quality setups only.`;
+    desc = `BTC ${btc7 >= 0 ? '+' : ''}${btc7.toFixed(1)}% · ${breadth.toFixed(0)}% of top 30 up. Quality only.`;
     cls = 'neutral';
   }
   return { state, cls, icon, title, desc, btc7, breadth };
@@ -1057,9 +1018,6 @@ function renderMarketBanner() {
     </div>`;
 }
 
-/* ============================================================
-   TODAY'S VERDICT
-============================================================ */
 function tradesLoggedToday() {
   const trades = loadTrades();
   const today = new Date().toDateString();
@@ -1068,12 +1026,7 @@ function tradesLoggedToday() {
 
 function computeVerdict() {
   if (!allCoins.length) {
-    return {
-      level: 'loading', icon: '⏳',
-      title: 'Loading market data…',
-      sub: 'Verdict will appear once prices load.',
-      reasons: []
-    };
+    return { level: 'loading', icon: '⏳', title: 'Loading market data…', sub: 'Verdict will appear once prices load.', reasons: [] };
   }
 
   const regime = computeMarketRegime();
@@ -1088,24 +1041,24 @@ function computeVerdict() {
 
   if (isCooldownActive()) {
     stops++;
-    reasons.push({ level: 'bad', text: '<b>You\'re on a cooldown.</b> Respect it. Book Ch.6: emotional trading after losses is how accounts die.' });
+    reasons.push({ level: 'bad', text: '<b>Cooldown active.</b> Respect it.' });
   }
 
   if (regime && regime.state === 'bear') {
     stops++;
-    reasons.push({ level: 'bad', text: `<b>Market is bearish.</b> BTC ${regime.btc7.toFixed(1)}% on the week. Signals fail more often here.` });
+    reasons.push({ level: 'bad', text: `<b>Bearish market.</b> BTC ${regime.btc7.toFixed(1)}% this week. Signals fail more often.` });
   } else if (regime && regime.state === 'bull') {
-    reasons.push({ level: 'good', text: `<b>Market is bullish.</b> BTC +${regime.btc7.toFixed(1)}% this week. Favourable conditions.` });
+    reasons.push({ level: 'good', text: `<b>Bullish market.</b> BTC +${regime.btc7.toFixed(1)}%. Favourable.` });
   } else if (regime) {
-    reasons.push({ level: 'info', text: `<b>Market is neutral.</b> Quality setups only.` });
+    reasons.push({ level: 'info', text: `<b>Neutral market.</b> Quality setups only.` });
   }
 
   if (open.length >= 2) {
     stops++;
-    reasons.push({ level: 'bad', text: `<b>You already have ${open.length} open trades.</b> Don't stack positions.` });
+    reasons.push({ level: 'bad', text: `<b>${open.length} open trades.</b> Don't stack positions.` });
   } else if (open.length === 1) {
     cautions++;
-    reasons.push({ level: 'warn', text: '<b>One open trade.</b> Only add another if it\'s a different setup and coin.' });
+    reasons.push({ level: 'warn', text: '<b>One open trade.</b> One per day max.' });
   } else {
     reasons.push({ level: 'good', text: '<b>No open trades.</b> Clean slate.' });
   }
@@ -1113,52 +1066,40 @@ function computeVerdict() {
   const todayCount = tradesLoggedToday();
   if (todayCount >= 1) {
     stops++;
-    reasons.push({ level: 'bad', text: `<b>Already logged ${todayCount} trade${todayCount !== 1 ? 's' : ''} today.</b> Overtrading is a beginner\'s biggest leak.` });
+    reasons.push({ level: 'bad', text: `<b>Already logged ${todayCount} trade today.</b> Overtrading leak.` });
   } else {
     reasons.push({ level: 'good', text: '<b>No trades logged today.</b> Fresh mind.' });
   }
 
   if (dd.current <= -2) {
     stops++;
-    reasons.push({ level: 'bad', text: `<b>On a ${Math.abs(dd.current)}-loss streak.</b> Wait for it to break before sizing up.` });
+    reasons.push({ level: 'bad', text: `<b>${Math.abs(dd.current)}-loss streak.</b> Wait for it to break.` });
   } else if (dd.current >= 2) {
-    reasons.push({ level: 'good', text: `<b>On a ${dd.current}-win streak.</b> Ride it, don\'t let it make you reckless.` });
-  } else {
-    reasons.push({ level: 'info', text: '<b>No active losing streak.</b>' });
+    reasons.push({ level: 'good', text: `<b>${dd.current}-win streak.</b> Stay disciplined.` });
   }
 
   if (portfolio.capitalPct > 50) {
     stops++;
-    reasons.push({ level: 'bad', text: `<b>${portfolio.capitalPct.toFixed(0)}% of account deployed.</b> Keep dry powder for good setups.` });
+    reasons.push({ level: 'bad', text: `<b>${portfolio.capitalPct.toFixed(0)}% deployed.</b> Keep dry powder.` });
   } else if (portfolio.capitalPct > 30) {
     cautions++;
     reasons.push({ level: 'warn', text: `<b>${portfolio.capitalPct.toFixed(0)}% deployed.</b> Get selective.` });
-  } else {
-    reasons.push({ level: 'good', text: `<b>Only ${portfolio.capitalPct.toFixed(0)}% of capital deployed.</b> Plenty of room.` });
-  }
-
-  const hour = new Date().getHours();
-  if (hour >= 23 || hour < 6) {
-    cautions++;
-    reasons.push({ level: 'warn', text: `<b>It's late (${hour}:00).</b> Consider waiting until morning.` });
   }
 
   let level, icon, title, sub;
   if (stops >= 2) {
     level = 'red'; icon = '🛑';
     title = 'Don\'t trade today';
-    sub = `${stops} stop signals active. Protect your capital. Come back tomorrow.`;
+    sub = `${stops} stop signals. Protect capital.`;
   } else if (stops === 1 || cautions >= 2) {
     level = 'yellow'; icon = '⚠️';
     title = 'Trade carefully';
-    const count = stops + cautions;
-    sub = `${count} warning${count !== 1 ? 's' : ''} active. Read the reasons before entering.`;
+    sub = `${stops + cautions} warning${(stops + cautions) !== 1 ? 's' : ''} active.`;
   } else {
     level = 'green'; icon = '✅';
     title = 'Good day to trade';
-    sub = 'No stop signals. Trade the plan, follow your rules.';
+    sub = 'No stop signals. Trade the plan.';
   }
-
   return { level, icon, title, sub, reasons };
 }
 
@@ -1172,7 +1113,7 @@ function renderVerdict() {
                : r.level === 'warn' ? '⚠️'
                : r.level === 'bad'  ? '🛑'
                : 'ℹ️';
-    return `<div class="verdict-reason ${r.level}">
+    return `<div class="verdict-reason-row ${r.level}">
       <span class="r-icon">${icon}</span>
       <span class="r-text">${r.text}</span>
     </div>`;
@@ -1191,14 +1132,11 @@ function renderVerdict() {
       ${v.reasons.length ? `
         <div class="verdict-reasons">
           ${reasonHTML}
-          <div class="verdict-note">Heuristic only — not financial advice. You always make the final call.</div>
+          <div class="verdict-note">Not financial advice. You make the final call.</div>
         </div>` : ''}
     </div>`;
 }
 
-/* ============================================================
-   TECHNICAL INDICATORS + STRUCTURE
-============================================================ */
 const indicatorsCache = {};
 const indicatorInFlight = new Set();
 let enrichTimer = null;
@@ -1243,7 +1181,7 @@ function computeMacd(closes, fast = 12, slow = 26, signalP = 9) {
   const n = macdLine.length - 1;
   const macdNow = macdLine[n], sigNow = sig[n];
   const macdPrev = macdLine[n - 1], sigPrev = sig[n - 1];
-  return { macdNow, sigNow, aboveSignal: macdNow > sigNow, bullishCross: macdNow > sigNow && macdPrev <= sigPrev };
+  return { aboveSignal: macdNow > sigNow, bullishCross: macdNow > sigNow && macdPrev <= sigPrev };
 }
 function computeRsi(closes, period = 14) {
   if (closes.length < period + 1) return null;
@@ -1294,17 +1232,8 @@ async function computeIndicators(coin, timeframe) {
 
     const structure = classifyStructure(dailyCandles);
 
-    let closes, volumes;
-    if (timeframe === '1d') {
-      closes = dailyCloses;
-      volumes = dailyCandles.map(c => c.volume);
-    } else {
-      const hKlines = await fetchBinanceKlines(symbol, '1h', 200);
-      if (!Array.isArray(hKlines) || hKlines.length < 30) throw new Error('Not enough hourly candles');
-      closes = hKlines.map(k => parseFloat(k[4]));
-      volumes = hKlines.map(k => parseFloat(k[5]));
-    }
-
+    const closes = dailyCloses;
+    const volumes = dailyCandles.map(c => c.volume);
     const price = closes[closes.length - 1];
 
     const s50 = sma(closes, 50);
@@ -1338,9 +1267,7 @@ async function computeIndicators(coin, timeframe) {
     const returns = [];
     for (let i = 1; i < closes.length; i++) returns.push((closes[i] - closes[i - 1]) / closes[i - 1]);
     const sd = stddev(returns);
-    const dailyVol = sd != null
-      ? (timeframe === '1d' ? sd * 100 : sd * Math.sqrt(24) * 100)
-      : null;
+    const dailyVol = sd != null ? sd * 100 : null;
     let volatility = 'unknown';
     if (dailyVol != null) {
       if (dailyVol < 2) volatility = 'low';
@@ -1349,16 +1276,14 @@ async function computeIndicators(coin, timeframe) {
     }
 
     return {
-      trend, momentum, volume, volatility, dailyVol, timeframe,
-      change7d, change30d,
-      structure,
-      high7d,
+      trend, momentum, volume, volatility, dailyVol,
+      change7d, change30d, structure, high7d,
       ts: Date.now()
     };
   } catch (e) {
     return {
       trend: 'neutral', momentum: 'neutral', volume: 'neutral',
-      volatility: 'unknown', dailyVol: null, timeframe,
+      volatility: 'unknown', dailyVol: null,
       structure: null, high7d: null, ts: Date.now(), error: true
     };
   }
@@ -1398,9 +1323,6 @@ async function enrichCoins(coins) {
   await Promise.all(Array.from({ length: CONCURRENCY }, worker));
 }
 
-/* ============================================================
-   DETECTION
-============================================================ */
 function isStablecoin(c) {
   const p = c.current_price ?? 0;
   const a = Math.abs(ch24(c));
@@ -1408,25 +1330,16 @@ function isStablecoin(c) {
   const m = Math.abs(ch30(c));
   return p >= 0.95 && p <= 1.05 && a < 1.0 && w < 2.5 && m < 4.0;
 }
-function isMomentumBurst(c) {
-  return ch24(c) >= 3 && ch24(c) <= 8 && ch7(c) > 0 && c.total_volume >= 5e6;
-}
-function isPullback(c) {
-  return ch7(c) >= 12 && ch24(c) <= -2 && ch24(c) >= -5.5 && ch30(c) > -10;
-}
+function isMomentumBurst(c) { return ch24(c) >= 3 && ch24(c) <= 8 && ch7(c) > 0 && c.total_volume >= 5e6; }
+function isPullback(c) { return ch7(c) >= 12 && ch24(c) <= -2 && ch24(c) >= -5.5 && ch30(c) > -10; }
 function isParabolic(c) {
-  const a = ch24(c);
-  const w = ch7(c);
-  const m = ch30(c);
+  const a = ch24(c), w = ch7(c), m = ch30(c);
   if (w >= 40) return true;
   if (a >= 20) return true;
   if (m >= 100 && w >= 15) return true;
   return false;
 }
 
-/* ============================================================
-   SCORING
-============================================================ */
 function qualityScore35(c) {
   const r1 = ch24(c), r7 = ch7(c) / 7, r30 = ch30(c) / 30;
   const trend = r1 * 0.5 + r7 * 0.3 + r30 * 0.2;
@@ -1525,9 +1438,6 @@ function chanceColor(p) {
   return 'var(--red)';
 }
 
-/* ============================================================
-   SETTINGS
-============================================================ */
 function loadSettings() { return safeGet(SETTINGS_KEY, { balance: 100, riskPct: 1 }); }
 function saveSettings(s) { safeSet(SETTINGS_KEY, s); }
 
@@ -1552,14 +1462,9 @@ function logAlert(type, title, message) {
   if (currentView === 'alerts') renderAlertLog();
 }
 
-/* ============================================================
-   SOUND / VIBRATION / NOTIFICATION
-============================================================ */
 let audioCtx = null;
 function ensureAudio() {
-  if (!audioCtx) {
-    try { audioCtx = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) { audioCtx = null; }
-  }
+  if (!audioCtx) { try { audioCtx = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) { audioCtx = null; } }
   if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
 }
 function playTone(freq, dur, delay = 0) {
@@ -1578,7 +1483,7 @@ function playTone(freq, dur, delay = 0) {
 function playAlertSound(type) {
   ensureAudio();
   if (!audioCtx) return;
-  if (type === 'win')   { playTone(880, 0.15, 0); playTone(1320, 0.20, 0.16); }
+  if (type === 'win') { playTone(880, 0.15, 0); playTone(1320, 0.20, 0.16); }
   else if (type === 'loss') { playTone(440, 0.18, 0); playTone(300, 0.28, 0.18); }
   else if (type === 'warn') { playTone(660, 0.10, 0); playTone(660, 0.10, 0.15); playTone(660, 0.10, 0.30); }
   else { playTone(520, 0.12, 0); playTone(780, 0.15, 0.13); }
@@ -1634,9 +1539,6 @@ function fireAlert(kind, title, message, tag) {
   if (dot && currentView !== 'alerts') dot.classList.remove('hidden');
 }
 
-/* ============================================================
-   COIN LOOKUP
-============================================================ */
 function findCoinLive(symbol, coinId) {
   if (coinId) { const byId = allCoins.find(c => c.id === coinId); if (byId) return byId; }
   const s = String(symbol || '').toLowerCase();
@@ -1650,9 +1552,6 @@ function findCoinLive(symbol, coinId) {
   return best;
 }
 
-/* ============================================================
-   COIN CARD — with verdict banner
-============================================================ */
 function coinCardHTML(c, highlight) {
   const a = ch24(c), w = ch7(c), m = ch30(c);
   const cls = a > 0 ? 'up' : a < 0 ? 'down' : 'flat';
@@ -1664,10 +1563,8 @@ function coinCardHTML(c, highlight) {
   const verdict = tradeVerdict(c);
 
   let setupBadge = '';
-  const isMom = isMomentumBurst(c);
-  const isPull = isPullback(c);
-  if (isMom) setupBadge = '<span class="sig-badge momentum">🚀 Momentum</span>';
-  if (isPull) setupBadge = '<span class="sig-badge pullback">📉 Pullback</span>';
+  if (isMomentumBurst(c)) setupBadge = '<span class="sig-badge momentum">🚀 Momentum</span>';
+  if (isPullback(c)) setupBadge = '<span class="sig-badge pullback">📉 Pullback</span>';
 
   let trendBadge = '';
   if (ind) {
@@ -1700,7 +1597,7 @@ function coinCardHTML(c, highlight) {
       <div class="top">
         <button class="star-btn ${watched ? 'watched' : ''}"
                 data-symbol="${esc(c.symbol)}"
-                aria-label="${watched ? 'Remove from watchlist' : 'Add to watchlist'}">
+                aria-label="${watched ? 'Remove' : 'Add'}">
           ${watched ? '★' : '☆'}
         </button>
         <div class="info">
@@ -1730,26 +1627,34 @@ function coinCardHTML(c, highlight) {
     </div>`;
 }
 
-/* ============================================================
-   COIN LIST RENDER
-============================================================ */
 function renderCoinList() {
   renderVerdict();
 
+  const openTrades = loadTrades().filter(t => t.status === 'open');
+  const gateEl = $('personalGate');
+  if (gateEl) {
+    if (openTrades.length >= 1) {
+      gateEl.innerHTML = `
+        <div class="gate-banner warn">
+          <span class="gate-icon">⚠️</span>
+          <span class="gate-text">You have ${openTrades.length} open trade${openTrades.length !== 1 ? 's' : ''}. Rule: one per day max. Do not open another.</span>
+        </div>`;
+    } else gateEl.innerHTML = '';
+  }
+
   const wl = loadWatchlist();
   const chipEl = document.querySelector('[data-filter="watchlist"]');
-  if (chipEl) {
-    chipEl.textContent = wl.length ? `⭐ Watchlist (${wl.length})` : '⭐ Watchlist';
-  }
+  if (chipEl) chipEl.textContent = wl.length ? `⭐ Watchlist (${wl.length})` : '⭐ Watchlist';
 
   const q = $('search').value.trim().toLowerCase();
   let list;
 
-  if (currentFilter === 'watchlist') {
-    list = allCoins.filter(c => wl.includes(c.symbol.toLowerCase()));
-  } else if (currentFilter === 'momentum') list = allCoins.filter(isMomentumBurst);
+  if (currentFilter === 'watchlist') list = allCoins.filter(c => wl.includes(c.symbol.toLowerCase()));
+  else if (currentFilter === 'momentum') list = allCoins.filter(isMomentumBurst);
   else if (currentFilter === 'pullback') list = allCoins.filter(isPullback);
-  else if (currentFilter === 'winners') {
+  else if (currentFilter === 'confluence') list = allCoins.filter(c => !isStablecoin(c) && confluenceCount(c) >= 3);
+  else if (currentFilter === 'all') list = allCoins;
+  else {
     const base = allCoins.filter(c => isMomentumBurst(c) || isPullback(c));
     const passing = base.filter(c => {
       const ind = getInd(c);
@@ -1762,8 +1667,6 @@ function renderCoinList() {
     winnersFilteredCount = base.length - passing.length;
     list = passing;
   }
-  else if (currentFilter === 'confluence') list = allCoins.filter(c => !isStablecoin(c) && confluenceCount(c) >= 3);
-  else list = allCoins;
 
   list = list.filter(c => !isStablecoin(c));
   list = list.slice().sort((a, b) => winnerScore(b) - winnerScore(a));
@@ -1773,34 +1676,25 @@ function renderCoinList() {
 
   let explainer = '';
   if (currentFilter === 'winners') {
-    explainer = `
-      <div class="banner" style="border-left-color:var(--amber);margin-bottom:16px">
-        <b>Winners are pre-filtered.</b> Only coins that pass structure and room-to-run checks are shown. Each card shows a TRADE or SKIP verdict at the top.
-      </div>`;
+    explainer = `<div class="banner" style="border-left-color:var(--amber);margin-bottom:16px"><b>Winners are pre-filtered.</b> Only coins passing structure and room-to-run. Verdict shown at the top of each card.</div>`;
   } else if (currentFilter === 'confluence') {
-    explainer = `
-      <div class="banner" style="border-left-color:var(--green);margin-bottom:16px">
-        <b>✨ Confluence filter.</b> Only 3+ of: <span style="color:#60a5fa">Trend UP</span> · <span style="color:#fb923c">Strong Momentum</span> · <span style="color:var(--green)">High Volume</span> · <span style="color:var(--green)">Green EV</span> · <span style="color:#fbbf24">Clean Structure</span>.
-      </div>`;
+    explainer = `<div class="banner" style="border-left-color:var(--green);margin-bottom:16px"><b>✨ Confluence filter.</b> Only 3+ of: Trend UP · Strong Momentum · High Volume · Green EV · Clean Structure.</div>`;
   } else if (currentFilter === 'watchlist') {
-    explainer = `
-      <div class="banner" style="border-left-color:#fbbf24;margin-bottom:16px">
-        <b>⭐ Your watchlist.</b> Tap the ☆ on any coin card to add or remove it here.
-      </div>`;
+    explainer = `<div class="banner" style="border-left-color:#fbbf24;margin-bottom:16px"><b>⭐ Your watchlist.</b> Tap ☆ to add or remove.</div>`;
   }
 
   if (!list.length) {
     const msgs = {
-      watchlist: ['⭐', 'No coins watched yet.', 'Tap the ☆ on any coin card to add it here.'],
+      watchlist: ['⭐', 'No coins watched yet.', 'Tap the ☆ to add one.'],
+      momentum: ['🚀', 'No momentum setups.', 'Needs +3% to +8% today, positive 7d.'],
+      pullback: ['📉', 'No pullback setups.', 'Needs +12% week, -2% to -5.5% today.'],
+      confluence: ['✨', 'No confluence setups yet.', 'Coins must meet 3 of 5.'],
+      all: ['📊', 'No coins found.', 'Try refreshing.'],
       winners: winnersFilteredCount > 0
-        ? ['🚫', `${winnersFilteredCount} setup${winnersFilteredCount !== 1 ? 's' : ''} filtered out`, 'All failed structure or room-to-run. Wait for pullbacks.']
-        : ['🏆', 'No qualified setups right now.', 'This is the correct result most of the time. Wait for the setup.'],
-      momentum: ['🚀', 'No momentum setups.', 'Needs a coin up 3–8% today with a positive 7-day trend.'],
-      pullback: ['📉', 'No pullback setups.', 'Needs a coin up 12%+ this week that dipped 2–5% today.'],
-      confluence: ['✨', 'No confluence setups yet.', 'Coins must meet 3 of 5 conditions.'],
-      all: ['📊', 'No coins found.', 'Try refreshing.']
+        ? ['🚫', `${winnersFilteredCount} setup${winnersFilteredCount !== 1 ? 's' : ''} filtered out`, 'All failed structure or room-to-run.']
+        : ['🏆', 'No qualified setups right now.', 'This is normal. Wait.']
     };
-    const [e, t, s] = msgs[currentFilter] || msgs.all;
+    const [e, t, s] = msgs[currentFilter] || msgs.winners;
     el.innerHTML = explainer + `<div class="empty"><span class="emoji">${e}</span><b>${t}</b><br>${s}</div>`;
     renderMarketBanner();
     return;
@@ -1814,9 +1708,6 @@ function renderCoinList() {
   if (toEnrich.length) enrichCoins(toEnrich);
 }
 
-/* ============================================================
-   FETCH — all liquid USDT pairs
-============================================================ */
 let pollTimer = null;
 let failStreak = 0;
 let firstFetchDone = false;
@@ -1837,9 +1728,7 @@ function transformBinanceTickers(tickers) {
     const base = t.symbol.slice(0, -4);
     const lower = base.toLowerCase();
     return {
-      id: lower,
-      symbol: lower,
-      name: COIN_NAMES[base] || base,
+      id: lower, symbol: lower, name: COIN_NAMES[base] || base,
       current_price: parseFloat(t.lastPrice),
       market_cap: parseFloat(t.quoteVolume) * 30,
       market_cap_rank: i + 1,
@@ -1862,7 +1751,7 @@ async function fetchCrypto() {
     const raw = await res.json();
     if (!Array.isArray(raw) || !raw.length) throw new Error('Bad payload');
     const transformed = transformBinanceTickers(raw);
-    if (!transformed.length) throw new Error('No liquid USDT pairs found');
+    if (!transformed.length) throw new Error('No pairs found');
 
     const prevMap = {};
     allCoins.forEach(c => { prevMap[c.id] = c; });
@@ -1886,9 +1775,8 @@ async function fetchCrypto() {
     const w = allCoins.filter(c => !isStablecoin(c) && (isMomentumBurst(c) || isPullback(c))).length;
     $('status').textContent = `${allCoins.length} liquid pairs · ${w} setup${w !== 1 ? 's' : ''} · ${currentTimeframe.toUpperCase()} · ${new Date().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}`;
   } catch (e) {
-    console.error(e);
     failStreak++;
-    const msg = failStreak >= 3 ? `Failed to load (${failStreak}×) — backing off` : 'Failed to load — tap ↻';
+    const msg = failStreak >= 3 ? `Failed to load (${failStreak}×)` : 'Failed to load — tap ↻';
     $('status').innerHTML = `<span style="color:var(--red)">${msg}</span>`;
   } finally {
     fetching = false;
@@ -1906,9 +1794,6 @@ function computePnl(t, exit) {
   return (exit - t.entry) * u;
 }
 
-/* ============================================================
-   AUTO-CLOSE + NEAR LEVELS + NEW SETUPS
-============================================================ */
 function loadTrades() { return safeGet(TRADES_KEY, []); }
 function saveTrades(t) { safeSet(TRADES_KEY, t); }
 
@@ -1921,7 +1806,6 @@ function autoCloseTrades({ silent = false } = {}) {
     const c = findCoinLive(t.coin, t.coinId);
     if (!c) return;
 
-    // Update high/low memory since trade opened
     if (t.highSinceOpen == null) t.highSinceOpen = c.high_24h;
     if (t.lowSinceOpen == null) t.lowSinceOpen = c.low_24h;
     t.highSinceOpen = Math.max(t.highSinceOpen, c.high_24h);
@@ -1932,7 +1816,6 @@ function autoCloseTrades({ silent = false } = {}) {
     const hitStop = t.lowSinceOpen <= t.stop;
 
     if (hitStop && hitTarget) {
-      // Both hit since last check — assume worst case: stop hit first
       t.exit = t.stop; t.status = 'loss';
       t.closeDate = new Date().toISOString(); t.autoClosed = 'stop';
       t.pnl = computePnl(t, t.stop);
@@ -1956,6 +1839,7 @@ function autoCloseTrades({ silent = false } = {}) {
     saveTrades(trades);
     checkStreakCooldown();
     if (currentView === 'journal') renderJournal();
+    if (currentView === 'scan') renderCoinList();
   }
 }
 function checkNearLevels() {
@@ -2012,9 +1896,6 @@ function checkNewSetups({ silent = false } = {}) {
   }
 }
 
-/* ============================================================
-   COOLDOWN
-============================================================ */
 function checkStreakCooldown() {
   const trades = loadTrades();
   const dd = computeDrawdown(trades);
@@ -2026,8 +1907,7 @@ function checkStreakCooldown() {
   }
   if (dd.current <= -3 && dd.current < ack && !isCooldownActive()) {
     activateCooldown(24, 'streak');
-    fireAlert('warn', '⏸️ Trading paused',
-      `Auto-activated after ${Math.abs(dd.current)} consecutive losses. 24h cooldown.`, 'cooldown');
+    fireAlert('warn', '⏸️ Trading paused', `Auto-activated after ${Math.abs(dd.current)} consecutive losses. 24h cooldown.`, 'cooldown');
   }
 }
 
@@ -2048,16 +1928,13 @@ function renderCooldownPanel() {
   const msLeft = cooldownTimeLeft();
   const h = Math.floor(msLeft / 3600000);
   const m = Math.floor((msLeft % 3600000) / 60000);
-  const reasonText = c.reason === 'streak'
-    ? 'Auto-paused after 3+ consecutive losses.'
-    : 'You paused trading manually.';
+  const reasonText = c.reason === 'streak' ? 'Auto-paused after 3+ consecutive losses.' : 'You paused trading manually.';
 
   panel.innerHTML = `
     <div class="block" style="border-color:rgba(239,68,68,0.4);background:rgba(239,68,68,0.05)">
       <h3 style="color:#fca5a5">⚠️ Trading paused</h3>
       <p style="font-size:0.82rem;color:var(--text);line-height:1.6;margin:0 0 12px">
-        ${reasonText}<br>
-        <b>Protect your capital. No new trades for ${h}h ${m}m.</b>
+        ${reasonText}<br><b>No new trades for ${h}h ${m}m.</b>
       </p>
       <button class="ghost small" id="openResumeModalBtn">Resume trading…</button>
     </div>`;
@@ -2071,9 +1948,6 @@ function renderCooldownPanel() {
   });
 }
 
-/* ============================================================
-   JOURNAL: AUTO-FILL
-============================================================ */
 function clearTradeFields() { ['jEntry','jStop','jTarget','jSize'].forEach(id => { $(id).value = ''; }); }
 
 function autoFillTrade() {
@@ -2084,8 +1958,8 @@ function autoFillTrade() {
 
   if (!sym) { clearTradeFields(); preview.textContent = 'Type a coin symbol and the trade fills in automatically.'; return; }
   const c = findCoinLive(sym);
-  if (!c) { clearTradeFields(); preview.innerHTML = `<span style="color:var(--red)">Coin "${esc(sym)}" not found in top 100.</span>`; return; }
-  if (isStablecoin(c)) { clearTradeFields(); preview.innerHTML = `<span style="color:var(--red)">${esc(sym)} is a stablecoin — no trading setup possible.</span>`; return; }
+  if (!c) { clearTradeFields(); preview.innerHTML = `<span style="color:var(--red)">Coin "${esc(sym)}" not found.</span>`; return; }
+  if (isStablecoin(c)) { clearTradeFields(); preview.innerHTML = `<span style="color:var(--red)">${esc(sym)} is a stablecoin.</span>`; return; }
 
   const entry = c.current_price;
   const ind = getInd(c);
@@ -2106,23 +1980,17 @@ function autoFillTrade() {
   $('jSize').value = posValue.toFixed(2);
 
   const rrr = (targetPct / stopPct).toFixed(2);
-  const volNote = ind && ind.volatility === 'high'
-    ? '<br><span style="color:#f87171">⚠️ High volatility — wider stop applied.</span>'
-    : '';
-  const parabNote = isParabolic(c)
-    ? '<br><span style="color:#f87171">⚠️ Parabolic move — book Ch.10 warns these reverse.</span>'
-    : '';
+  const volNote = ind && ind.volatility === 'high' ? '<br><span style="color:#f87171">⚠️ High volatility — wider stop.</span>' : '';
+  const parabNote = isParabolic(c) ? '<br><span style="color:#f87171">⚠️ Parabolic move.</span>' : '';
   let structNote = '';
   if (ind && ind.structure) {
     const sb = structureBadge(ind.structure);
-    if (sb) structNote = `<br><span style="color:#f87171">${sb.label} — market structure against this trade.</span>`;
+    if (sb) structNote = `<br><span style="color:#f87171">${sb.label}</span>`;
   }
   const rc = hasRoomToRun(c);
-  if (rc && !rc.pass) {
-    structNote += `<br><span style="color:#f87171">${rc.label} — skip or wait for pullback.</span>`;
-  } else if (rc && rc.pass) {
-    structNote += `<br><span style="color:var(--green)">✅ Room to run.</span>`;
-  }
+  if (rc && !rc.pass) structNote += `<br><span style="color:#f87171">${rc.label}</span>`;
+  else if (rc && rc.pass) structNote += `<br><span style="color:var(--green)">✅ Room to run.</span>`;
+
   preview.innerHTML = `
     <b>${esc(c.name)}</b> · live ${price(entry)}<br>
     Stop ${(stopPct*100).toFixed(1)}% · Target +${(targetPct*100).toFixed(1)}% · R:R <span class="green">${rrr}:1</span><br>
@@ -2130,10 +1998,7 @@ function autoFillTrade() {
 }
 
 function addTrade() {
-  if (isCooldownActive()) {
-    showBanner('⏸️ Trading paused — no new trades allowed', 'warn');
-    return;
-  }
+  if (isCooldownActive()) { showBanner('⏸️ Trading paused', 'warn'); return; }
   const coin = $('jCoin').value.trim().toUpperCase();
   const setup = $('jSetup').value;
   const entry = parseFloat($('jEntry').value);
@@ -2144,7 +2009,7 @@ function addTrade() {
   const preview = $('jPreview');
 
   if (!coin || !entry || !stop || !target) { preview.innerHTML = '<span style="color:var(--red)">Fill coin, entry, stop, target.</span>'; return; }
-  if (!(stop < entry && entry < target)) { preview.innerHTML = '<span style="color:var(--red)">Stop must be below entry, and target above entry.</span>'; return; }
+  if (!(stop < entry && entry < target)) { preview.innerHTML = '<span style="color:var(--red)">Stop < entry < target required.</span>'; return; }
 
   const live = findCoinLive(coin);
   const trades = loadTrades();
@@ -2189,9 +2054,7 @@ function closeTradeManual(id) {
   t.autoClosed = null;
   saveTrades(trades);
   closingTradeId = null; closingExitValue = '';
-  fireAlert(t.status === 'win' ? 'win' : 'loss',
-    `${t.status === 'win' ? '✅' : '🛑'} ${t.coin} closed`,
-    `${t.pnl >= 0 ? '+' : ''}${money(Math.abs(t.pnl))}`, 'trade-' + t.coin);
+  fireAlert(t.status === 'win' ? 'win' : 'loss', `${t.status === 'win' ? '✅' : '🛑'} ${t.coin} closed`, `${t.pnl >= 0 ? '+' : ''}${money(Math.abs(t.pnl))}`, 'trade-' + t.coin);
   checkStreakCooldown();
   renderJournal();
 }
@@ -2218,12 +2081,7 @@ function beginEditTrade(id) {
   const t = trades.find(x => x.id === id);
   if (!t) return;
   editingTradeId = id;
-  editDraft = {
-    coin: t.coin, setup: t.setup,
-    entry: String(t.entry), stop: String(t.stop),
-    target: String(t.target), size: String(t.size || 0),
-    notes: t.notes || ''
-  };
+  editDraft = { coin: t.coin, setup: t.setup, entry: String(t.entry), stop: String(t.stop), target: String(t.target), size: String(t.size || 0), notes: t.notes || '' };
   closingTradeId = null; deletingTradeId = null; bulkConfirmOpen = false;
   renderJournal();
   setTimeout(() => { const first = document.querySelector('.edit-field[data-field="coin"]'); if (first) first.focus(); }, 30);
@@ -2240,7 +2098,7 @@ function saveEditedTrade(id) {
   const size = parseFloat(editDraft.size) || 0;
   const notes = String(editDraft.notes || '').trim();
 
-  if (!coin || !isFinite(entry) || !isFinite(stop) || !isFinite(target)) { showBanner('⚠️ Fill coin, entry, stop, target', 'warn'); return; }
+  if (!coin || !isFinite(entry) || !isFinite(stop) || !isFinite(target)) { showBanner('⚠️ Fill all fields', 'warn'); return; }
   if (!(stop < entry && entry < target)) { showBanner('⚠️ Stop must be < entry < target', 'warn'); return; }
 
   const trades = loadTrades();
@@ -2262,9 +2120,6 @@ function saveEditedTrade(id) {
   renderJournal();
 }
 
-/* ============================================================
-   STATS + PORTFOLIO
-============================================================ */
 function computeStats(trades) {
   const closed = trades.filter(t => t.status === 'win' || t.status === 'loss');
   const wins = closed.filter(t => t.status === 'win');
@@ -2287,10 +2142,7 @@ function breakdownBy(trades, key) {
   return g;
 }
 function computeDrawdown(trades) {
-  const closed = trades
-    .filter(t => t.status === 'win' || t.status === 'loss')
-    .slice()
-    .sort((a, b) => new Date(a.closeDate || a.date) - new Date(b.closeDate || b.date));
+  const closed = trades.filter(t => t.status === 'win' || t.status === 'loss').slice().sort((a, b) => new Date(a.closeDate || a.date) - new Date(b.closeDate || b.date));
   if (!closed.length) return { maxDD: 0, peak: 0, current: 0, maxLossStreak: 0, maxWinStreak: 0 };
 
   let equity = 0, peak = 0, maxDD = 0;
@@ -2343,31 +2195,25 @@ function analyzePortfolio(trades) {
   });
 
   const warnings = [];
-  if (capitalPct > 50) warnings.push({ level: 'danger', msg: `⚠️ ${capitalPct.toFixed(0)}% of your account is deployed. Book Ch.6: keep under 50%.` });
-  else if (capitalPct > 30) warnings.push({ level: 'warn', msg: `${capitalPct.toFixed(0)}% deployed. Consider more dry powder.` });
-  if (riskPct > 8) warnings.push({ level: 'danger', msg: `⚠️ Total risk if all stop out: ${riskPct.toFixed(1)}%. Book Ch.6 limit: 6%.` });
+  if (capitalPct > 50) warnings.push({ level: 'danger', msg: `⚠️ ${capitalPct.toFixed(0)}% of account deployed. Keep under 50%.` });
+  if (riskPct > 8) warnings.push({ level: 'danger', msg: `⚠️ Total risk if all stop: ${riskPct.toFixed(1)}%. Limit 6%.` });
   else if (riskPct > 5) warnings.push({ level: 'warn', msg: `Total risk if all stop: ${riskPct.toFixed(1)}%. Getting high.` });
 
   const dominant = Object.entries(bySetup).sort((a,b) => b[1] - a[1])[0];
-  if (dominant && dominant[1] >= 3) warnings.push({ level: 'warn', msg: `All ${dominant[1]} trades are "${dominant[0]}". If that setup fails, they all fail together.` });
+  if (dominant && dominant[1] >= 3) warnings.push({ level: 'warn', msg: `All ${dominant[1]} trades are "${dominant[0]}". If it fails, they all fail together.` });
 
   const dupCoin = Object.entries(byCoin).find(([_, n]) => n >= 2);
-  if (dupCoin) warnings.push({ level: 'danger', msg: `You have ${dupCoin[1]} open trades on ${dupCoin[0]}. That's one bet, not two.` });
-
-  const regime = computeMarketRegime();
-  if (regime && regime.state === 'bear' && open.length > 0) {
-    warnings.push({ level: 'warn', msg: `Market is bearish. Book Ch.10: signals fail more often.` });
-  }
+  if (dupCoin) warnings.push({ level: 'danger', msg: `You have ${dupCoin[1]} open trades on ${dupCoin[0]}. One bet, not two.` });
 
   return { open, totalDeployed, capitalPct, totalRisk, riskPct, bySetup, byCoin, warnings };
 }
 
-function generateInsight(stats, setupG, coinG, portfolio, drawdown, calibration) {
+function generateInsight(stats, setupG, portfolio, drawdown, calibration) {
   const lines = [];
   if (stats.closed.length === 0 && portfolio.open.length === 0) {
     return `<div class="insight"><div class="title">🧠 Learning mode</div>Log at least <b>20 closed trades</b> before trusting patterns. Right now: <b>0</b>.</div>`;
   }
-  lines.push(`Closed: <b>${stats.closed.length}</b> ${stats.closed.length < 20 ? '<span style="color:var(--muted)">— need 20 for reliable data</span>' : '<span class="good">— good sample</span>'}`);
+  lines.push(`Closed: <b>${stats.closed.length}</b> ${stats.closed.length < 20 ? '<span style="color:var(--muted)">— need 20</span>' : '<span class="good">— good sample</span>'}`);
 
   const m = setupG['Momentum'], p = setupG['Pullback'];
   const wr = g => g ? (g.wins / (g.wins + g.losses) * 100) : 0;
@@ -2379,23 +2225,20 @@ function generateInsight(stats, setupG, coinG, portfolio, drawdown, calibration)
     }
   }
   if (stats.avgLoss !== 0) {
-    if (stats.rrRatio >= 2) lines.push(`R:R <span class="good">${stats.rrRatio.toFixed(2)}:1 — profitable</span>`);
-    else if (stats.rrRatio < 1) lines.push(`<span class="bad">Avg loss > avg win.</span> Tighten stops or aim higher.`);
+    if (stats.rrRatio >= 2) lines.push(`R:R <span class="good">${stats.rrRatio.toFixed(2)}:1</span>`);
+    else if (stats.rrRatio < 1) lines.push(`<span class="bad">Avg loss > avg win.</span>`);
   }
   if (stats.expectancy > 0) lines.push(`Expectancy <span class="good">+$${stats.expectancy.toFixed(2)}/trade</span>`);
   else if (stats.expectancy < 0) lines.push(`Expectancy <span class="bad">-$${Math.abs(stats.expectancy).toFixed(2)}/trade</span>`);
 
   if (calibration && calibration.samples >= 5) {
     const d = calibration.delta;
-    if (d >= 8) lines.push(`📊 <span class="good">Calibration: beating your estimates by ${d.toFixed(0)}%</span>`);
-    else if (d <= -8) lines.push(`📊 <span class="bad">Calibration: actual ${Math.abs(d).toFixed(0)}% below estimate</span>`);
-    else lines.push(`📊 Calibration: model matches reality within ${Math.abs(d).toFixed(0)}%.`);
+    if (d >= 8) lines.push(`📊 <span class="good">Beating estimates by ${d.toFixed(0)}%</span>`);
+    else if (d <= -8) lines.push(`📊 <span class="bad">Actual ${Math.abs(d).toFixed(0)}% below estimate</span>`);
   }
 
-  if (drawdown.maxLossStreak >= 3) lines.push(`⚠️ Longest losing streak: <b>${drawdown.maxLossStreak}</b>. Normal.`);
-  if (drawdown.maxWinStreak >= 4) lines.push(`🔥 Longest winning streak: <b>${drawdown.maxWinStreak}</b>.`);
-  if (drawdown.current <= -3) lines.push(`<span class="warn">You're on a ${Math.abs(drawdown.current)}-loss streak.</span> Consider a break.`);
-  if (drawdown.current >= 3) lines.push(`<span class="good">You're on a ${drawdown.current}-win streak.</span>`);
+  if (drawdown.current <= -3) lines.push(`<span class="warn">${Math.abs(drawdown.current)}-loss streak.</span> Consider a break.`);
+  if (drawdown.current >= 3) lines.push(`<span class="good">${drawdown.current}-win streak.</span>`);
 
   return `<div class="insight"><div class="title">🧠 Insight</div>${lines.join('<br>')}</div>`;
 }
@@ -2424,22 +2267,17 @@ function renderPortfolioPanel(trades) {
   `;
 
   if (p.warnings.length) {
-    p.warnings.forEach(w => {
-      html += `<div class="portfolio-warn ${w.level === 'danger' ? 'danger' : ''}">${w.msg}</div>`;
-    });
+    p.warnings.forEach(w => { html += `<div class="portfolio-warn ${w.level === 'danger' ? 'danger' : ''}">${w.msg}</div>`; });
   } else if (p.open.length > 0) {
     html += `<div class="portfolio-warn" style="background:rgba(34,197,94,0.06);border-left-color:var(--green)">✅ Portfolio looks healthy.</div>`;
   } else {
-    html += `<div class="portfolio-warn" style="background:transparent;border-left-color:var(--border-soft);color:var(--muted)">No open trades. Risk metrics appear when you log one.</div>`;
+    html += `<div class="portfolio-warn" style="background:transparent;border-left-color:var(--border-soft);color:var(--muted)">No open trades.</div>`;
   }
 
   html += `</div>`;
   panel.innerHTML = html;
 }
 
-/* ============================================================
-   JOURNAL RENDER
-============================================================ */
 function renderJournal() {
   renderCooldownPanel();
   const trades = loadTrades();
@@ -2451,7 +2289,7 @@ function renderJournal() {
   const portfolio = analyzePortfolio(trades);
 
   renderPortfolioPanel(trades);
-  $('journalInsight').innerHTML = generateInsight(stats, setupG, coinG, portfolio, drawdown, calibration);
+  $('journalInsight').innerHTML = generateInsight(stats, setupG, portfolio, drawdown, calibration);
 
   $('journalStats').innerHTML = `
     <div class="stat"><div class="val">${trades.length}</div><div class="lbl">Trades</div></div>
@@ -2492,7 +2330,7 @@ function renderJournal() {
     bulkSlot.innerHTML = `
       <div class="bulk-confirm">
         <b>Delete all ${closedCount} closed trades?</b><br>
-        This removes every Win and Loss. Open trades are kept. Cannot be undone.
+        Removes every Win and Loss. Open trades are kept.
         <div class="bulk-actions">
           <button class="ghost small bulk-cancel">Cancel</button>
           <button class="small bulk-confirm-yes" style="background:var(--red)">Yes, delete them</button>
@@ -2502,7 +2340,7 @@ function renderJournal() {
 
   const listEl = $('journalList');
   if (!trades.length) {
-    listEl.innerHTML = '<div class="empty">No trades logged yet.<br>Type a coin above to start.</div>';
+    listEl.innerHTML = '<div class="empty">No trades logged yet.</div>';
     return;
   }
 
@@ -2550,7 +2388,7 @@ function renderJournal() {
     return `
       <div class="trade ${nearClass} ${isEditing ? 'editing' : ''} ${isClosed ? 'closed' : ''}"
            data-id="${t.id}" data-symbol="${esc(t.coin)}">
-        <button class="del" data-id="${t.id}" aria-label="Delete" ${isEditing ? 'style="display:none"' : ''}>✕</button>
+        <button class="del" data-id="${t.id}" ${isEditing ? 'style="display:none"' : ''}>✕</button>
         <div class="row1">
           <div>
             <span class="pair">${esc(t.coin)}</span>
@@ -2592,7 +2430,7 @@ function renderJournal() {
               <div><label>Target</label><input type="number" step="any" class="edit-field" data-field="target" value="${esc(editDraft.target)}" /></div>
               <div><label>Size (USD)</label><input type="number" step="any" class="edit-field" data-field="size" value="${esc(editDraft.size)}" /></div>
             </div>
-            <div class="field"><label>Notes</label><textarea class="edit-field" data-field="notes" placeholder="Why this trade?">${esc(editDraft.notes)}</textarea></div>
+            <div class="field"><label>Notes</label><textarea class="edit-field" data-field="notes">${esc(editDraft.notes)}</textarea></div>
             <div class="form-actions">
               <button class="ghost small edit-cancel">Cancel</button>
               <button class="small edit-save" data-id="${t.id}">Save changes</button>
@@ -2619,9 +2457,6 @@ function renderJournal() {
   }).join('');
 }
 
-/* ============================================================
-   ALERTS PANEL
-============================================================ */
 function updatePermStatus() {
   const el = $('permStatus');
   if (!('Notification' in window)) { el.textContent = 'Unsupported'; el.className = 'perm-pill perm-denied'; return; }
@@ -2653,9 +2488,6 @@ function renderAlertsPanel() {
   $('navDot').classList.add('hidden');
 }
 
-/* ============================================================
-   RISK CALC
-============================================================ */
 function calcRisk() {
   const bal = parseFloat($('cBalance').value) || 0;
   const riskP = parseFloat($('cRisk').value) || 0;
@@ -2677,9 +2509,6 @@ function calcRisk() {
     Value <b>${money(posValue)}</b>`;
 }
 
-/* ============================================================
-   VIEW SWITCHING
-============================================================ */
 function syncAccountInputs() {
   const s = loadSettings();
   $('jBalance').value = s.balance;
@@ -2698,9 +2527,6 @@ function switchView(view) {
   else if (view === 'scan') renderCoinList();
 }
 
-/* ============================================================
-   CHART / DETAIL VIEW
-============================================================ */
 let currentChart = null;
 let currentChartSeries = null;
 let currentDetailSymbol = null;
@@ -2740,7 +2566,6 @@ function openCoinDetail(symbol, coinId) {
   loadChart(coin, 7);
   renderDetailStats(coin);
 }
-
 async function openCoinFromJournal(symbol, coinId) {
   let coin = findCoinLive(symbol, coinId);
   if (!coin) {
@@ -2753,9 +2578,7 @@ async function openCoinFromJournal(symbol, coinId) {
         if (t && t.symbol) {
           const base = t.symbol.slice(0, -4);
           coin = {
-            id: base.toLowerCase(),
-            symbol: base.toLowerCase(),
-            name: COIN_NAMES[base] || base,
+            id: base.toLowerCase(), symbol: base.toLowerCase(), name: COIN_NAMES[base] || base,
             current_price: parseFloat(t.lastPrice),
             market_cap: parseFloat(t.quoteVolume) * 30,
             market_cap_rank: 999,
@@ -2769,13 +2592,9 @@ async function openCoinFromJournal(symbol, coinId) {
       }
     } catch (e) {}
   }
-  if (!coin) {
-    showBanner(`⚠️ ${symbol.toUpperCase()} not found on Binance`, 'warn');
-    return;
-  }
+  if (!coin) { showBanner(`⚠️ ${symbol.toUpperCase()} not found`, 'warn'); return; }
   openCoinDetail(coin.symbol, coin.id);
 }
-
 async function loadChart(coin, days) {
   const myId = ++chartReqId;
   const statusEl = $('chartStatus');
@@ -2788,8 +2607,8 @@ async function loadChart(coin, days) {
   try {
     const symbol = coin.symbol.toUpperCase() + 'USDT';
     let interval, limit;
-    if (days === '1h')       { interval = '1h'; limit = 200; }
-    else if (days === 1)     { interval = '5m'; limit = 288; }
+    if (days === '1h')       { interval = '5m'; limit = 60; }
+    else if (days === 1)     { interval = '15m'; limit = 96; }
     else if (days === 7)     { interval = '1h'; limit = 168; }
     else if (days === 30)    { interval = '4h'; limit = 180; }
     else                     { interval = '1d'; limit = 90; }
@@ -2816,14 +2635,14 @@ function renderChart(coin, series) {
   statusEl.style.display = 'none';
   if (currentChart) { try { currentChart.remove(); } catch(e) {} currentChart = null; currentChartSeries = null; }
   if (typeof LightweightCharts === 'undefined') {
-    statusEl.textContent = 'Chart library failed to load. Check your internet.';
+    statusEl.textContent = 'Chart library failed to load.';
     statusEl.style.display = 'flex';
     return;
   }
   const w = Math.max(280, container.clientWidth - 16);
   const h = 320;
   const p = coin.current_price;
-  const precision = p < 0.01 ? 8 : (p < 1 ? 4 : 4);
+  const precision = p < 0.01 ? 8 : 4;
   const minMove = Math.pow(10, -precision);
   try {
     currentChart = LightweightCharts.createChart(container, {
@@ -2831,11 +2650,7 @@ function renderChart(coin, series) {
       layout: { background: { color: '#131720' }, textColor: '#8a94a6', fontSize: 11 },
       grid: { vertLines: { color: '#1a1f2b' }, horzLines: { color: '#1a1f2b' } },
       rightPriceScale: { borderColor: '#222838' },
-      timeScale: {
-        borderColor: '#222838',
-        timeVisible: true,
-        secondsVisible: false
-      }
+      timeScale: { borderColor: '#222838', timeVisible: true, secondsVisible: false }
     });
     currentChartSeries = currentChart.addAreaSeries({
       lineColor: '#3b82f6', topColor: 'rgba(59,130,246,0.35)', bottomColor: 'rgba(59,130,246,0.02)', lineWidth: 2,
@@ -2844,7 +2659,7 @@ function renderChart(coin, series) {
     currentChartSeries.setData(series);
     currentChart.timeScale().fitContent();
   } catch (err) {
-    statusEl.textContent = 'Chart error: ' + (err.message || 'unknown');
+    statusEl.textContent = 'Chart error.';
     statusEl.style.display = 'flex';
     if (currentChart) { try { currentChart.remove(); } catch(e) {} currentChart = null; }
     return;
@@ -2874,30 +2689,14 @@ function renderChart(coin, series) {
 
 function structureBlockHTML(structure) {
   if (!structure || structure.trend === 'unknown') {
-    return `
-      <div class="block">
-        <h3>Market structure <span class="hint">not enough data</span></h3>
-        <div class="bd-row"><span class="k">Status</span><span class="v" style="color:var(--muted)">Insufficient swing points</span></div>
-      </div>`;
+    return `<div class="block"><h3>Market structure <span class="hint">not enough data</span></h3><div class="bd-row"><span class="k">Status</span><span class="v" style="color:var(--muted)">Insufficient swing points</span></div></div>`;
   }
-  const trendLabel = structure.trend === 'up' ? '📈 Uptrend (HH + HL)'
-                    : structure.trend === 'down' ? '📉 Downtrend (LH + LL)'
-                    : '↔️ Neutral / mixed';
-  const trendColor = structure.trend === 'up' ? 'var(--green)'
-                    : structure.trend === 'down' ? 'var(--red)'
-                    : 'var(--muted)';
-  const bosLabel = structure.bos === 'bull' ? '✅ Bullish (broke recent high)'
-                  : structure.bos === 'bear' ? '🛑 Bearish (broke recent low)'
-                  : '— none recent';
-  const chochLabel = structure.choch === 'bull' ? '🔄 Bullish reversal signal'
-                    : structure.choch === 'bear' ? '🔄 Bearish reversal signal'
-                    : '— none';
-  const posLabel = structure.position === 'premium' ? '🔺 Premium (near top of range)'
-                  : structure.position === 'discount' ? '🔻 Discount (near bottom of range)'
-                  : '⚖️ Equilibrium (middle of range)';
-  const posColor = structure.position === 'premium' ? 'var(--amber)'
-                  : structure.position === 'discount' ? 'var(--green)'
-                  : 'var(--muted)';
+  const trendLabel = structure.trend === 'up' ? '📈 Uptrend (HH + HL)' : structure.trend === 'down' ? '📉 Downtrend (LH + LL)' : '↔️ Neutral / mixed';
+  const trendColor = structure.trend === 'up' ? 'var(--green)' : structure.trend === 'down' ? 'var(--red)' : 'var(--muted)';
+  const bosLabel = structure.bos === 'bull' ? '✅ Bullish (broke recent high)' : structure.bos === 'bear' ? '🛑 Bearish (broke recent low)' : '— none recent';
+  const chochLabel = structure.choch === 'bull' ? '🔄 Bullish reversal signal' : structure.choch === 'bear' ? '🔄 Bearish reversal signal' : '— none';
+  const posLabel = structure.position === 'premium' ? '🔺 Premium (near top)' : structure.position === 'discount' ? '🔻 Discount (near bottom)' : '⚖️ Equilibrium';
+  const posColor = structure.position === 'premium' ? 'var(--amber)' : structure.position === 'discount' ? 'var(--green)' : 'var(--muted)';
   const distRes = structure.distToResistance != null ? `${structure.distToResistance.toFixed(2)}%` : '—';
   const distSup = structure.distToSupport != null ? `${structure.distToSupport.toFixed(2)}%` : '—';
 
@@ -2929,7 +2728,7 @@ function renderDetailStats(coin) {
   if (isMom && ind && ind.momentum === 'strong') tags.push('<span class="sig-badge momentum-strong">⚡ Strong Momentum</span>');
   else if (isMom) tags.push('<span class="sig-badge momentum">🚀 Momentum</span>');
   if (isPull) tags.push('<span class="sig-badge pullback">📉 Pullback</span>');
-  if (parabolic) tags.push('<span class="sig-badge" style="background:rgba(239,68,68,0.2);color:#fca5a5;border:1px solid rgba(239,68,68,0.4)">⚠️ Parabolic</span>');
+  if (parabolic) tags.push('<span class="sig-badge" style="background:rgba(239,68,68,0.2);color:#fca5a5">⚠️ Parabolic</span>');
   if (!stable && !isMom && !isPull) tags.push('<span class="tag open">No setup</span>');
 
   let trendBadge = '';
@@ -2944,17 +2743,12 @@ function renderDetailStats(coin) {
   const a = ch24(coin), w = ch7(coin), m = ch30(coin);
   const confCount = confluenceCount(coin);
   const volText = ind && ind.dailyVol != null ? `~${ind.dailyVol.toFixed(1)}% / day` : '—';
-  const tfLabel = currentTimeframe === '1d' ? '1D candles' : '1H candles';
   const w7Display = has7d(coin) ? `${w >= 0 ? '+' : ''}${w.toFixed(2)}%` : '—';
   const m30Display = has30d(coin) ? `${m >= 0 ? '+' : ''}${m.toFixed(2)}%` : '—';
 
   const roomCheck = hasRoomToRun(coin);
-  const roomText = !roomCheck ? '—'
-    : roomCheck.pass ? '✅ Yes'
-    : '❌ ' + roomCheck.label;
-  const roomColor = !roomCheck ? 'var(--muted)'
-    : roomCheck.pass ? 'var(--green)'
-    : 'var(--red)';
+  const roomText = !roomCheck ? '—' : roomCheck.pass ? '✅ Yes' : '❌ ' + roomCheck.label;
+  const roomColor = !roomCheck ? 'var(--muted)' : roomCheck.pass ? 'var(--green)' : 'var(--red)';
 
   const verdictText = verdict.verdict === 'TRADE' ? '✅ TRADE' : verdict.verdict === 'SKIP' ? '❌ SKIP' : '⏳ WAIT';
   const verdictColor = verdict.verdict === 'TRADE' ? 'var(--green)' : verdict.verdict === 'SKIP' ? 'var(--red)' : 'var(--muted)';
@@ -2962,9 +2756,7 @@ function renderDetailStats(coin) {
   $('dStats').innerHTML = `
     <div class="block">
       <div class="bd-row"><span class="k">Verdict</span><span class="v" style="color:${verdictColor}">${verdictText}</span></div>
-      <div class="bd-row"><span class="k">Reason</span><span class="v" style="color:var(--muted);font-size:0.75rem">${verdict.reason}</span></div>
       <div style="margin:10px 0">${tags.join('')}${trendBadge}</div>
-      <div class="bd-row"><span class="k">Timeframe</span><span class="v">${tfLabel}</span></div>
       <div class="bd-row"><span class="k">24h change</span><span class="v ${a >= 0 ? 'up' : 'down'}">${a >= 0 ? '+' : ''}${a.toFixed(2)}%</span></div>
       <div class="bd-row"><span class="k">7d change</span><span class="v ${has7d(coin) ? (w >= 0 ? 'up' : 'down') : ''}">${w7Display}</span></div>
       <div class="bd-row"><span class="k">30d change</span><span class="v ${has30d(coin) ? (m >= 0 ? 'up' : 'down') : ''}">${m30Display}</span></div>
@@ -3026,11 +2818,9 @@ $('coinList').addEventListener('click', e => {
     const nowWatched = toggleWatch(sym);
     star.classList.toggle('watched', nowWatched);
     star.textContent = nowWatched ? '★' : '☆';
-    star.setAttribute('aria-label', nowWatched ? 'Remove from watchlist' : 'Add to watchlist');
-    showBanner(nowWatched ? `⭐ ${sym.toUpperCase()} added to watchlist` : `Removed ${sym.toUpperCase()}`, 'info');
-    if (currentFilter === 'watchlist' && !nowWatched) {
-      renderCoinList();
-    } else {
+    showBanner(nowWatched ? `⭐ ${sym.toUpperCase()} added` : `Removed ${sym.toUpperCase()}`, 'info');
+    if (currentFilter === 'watchlist' && !nowWatched) renderCoinList();
+    else {
       const wl = loadWatchlist();
       const chipEl = document.querySelector('[data-filter="watchlist"]');
       if (chipEl) chipEl.textContent = wl.length ? `⭐ Watchlist (${wl.length})` : '⭐ Watchlist';
@@ -3049,12 +2839,7 @@ window.addEventListener('popstate', () => {
   switchView(target);
 });
 
-/* ============================================================
-   EVENTS
-============================================================ */
-document.querySelectorAll('nav button').forEach(b => {
-  b.addEventListener('click', () => switchView(b.dataset.view));
-});
+document.querySelectorAll('nav button').forEach(b => b.addEventListener('click', () => switchView(b.dataset.view)));
 document.querySelectorAll('.chip').forEach(c => {
   c.addEventListener('click', () => {
     document.querySelectorAll('.chip').forEach(x => { x.classList.remove('active'); x.setAttribute('aria-pressed', 'false'); });
@@ -3066,23 +2851,7 @@ document.querySelectorAll('.chip').forEach(c => {
 
 document.body.addEventListener('click', e => {
   const head = e.target.closest('#verdictHead');
-  if (head) {
-    verdictExpanded = !verdictExpanded;
-    renderVerdict();
-  }
-});
-
-document.querySelectorAll('.tf-btn').forEach(btn => {
-  btn.classList.toggle('active', btn.dataset.tf === currentTimeframe);
-  btn.addEventListener('click', () => {
-    if (btn.dataset.tf === currentTimeframe) return;
-    document.querySelectorAll('.tf-btn').forEach(b => b.classList.remove('active'));
-    btn.classList.add('active');
-    currentTimeframe = btn.dataset.tf;
-    safeSet(TIMEFRAME_KEY, currentTimeframe);
-    showBanner(`Timeframe: ${currentTimeframe.toUpperCase()}`, 'info');
-    renderCoinList();
-  });
+  if (head) { verdictExpanded = !verdictExpanded; renderVerdict(); }
 });
 
 $('search').addEventListener('input', renderCoinList);
@@ -3107,28 +2876,15 @@ $('jAddBtn').addEventListener('click', addTrade);
 
 $('exportJournalBtn').addEventListener('click', () => {
   try {
-    const data = {
-      version: 1,
-      exportedAt: new Date().toISOString(),
-      trades: loadTrades(),
-      settings: loadSettings(),
-      alertSettings: loadAlertSettings(),
-      watchlist: loadWatchlist()
-    };
+    const data = { version: 1, exportedAt: new Date().toISOString(), trades: loadTrades(), settings: loadSettings(), alertSettings: loadAlertSettings(), watchlist: loadWatchlist() };
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
-    const stamp = new Date().toISOString().slice(0, 10);
-    a.href = url;
-    a.download = `crypto-journal-${stamp}.json`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
+    a.href = url; a.download = `crypto-journal-${new Date().toISOString().slice(0,10)}.json`;
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
     setTimeout(() => URL.revokeObjectURL(url), 1000);
-    showBanner('✅ Journal exported', 'info');
-  } catch (e) {
-    showBanner('⚠️ Export failed: ' + e.message, 'warn');
-  }
+    showBanner('✅ Exported', 'info');
+  } catch (e) { showBanner('⚠️ Export failed', 'warn'); }
 });
 $('importJournalBtn').addEventListener('click', () => { $('importFileInput').click(); });
 $('importFileInput').addEventListener('change', async (e) => {
@@ -3139,10 +2895,7 @@ $('importFileInput').addEventListener('change', async (e) => {
     const data = JSON.parse(text);
     if (!data || !Array.isArray(data.trades)) throw new Error('Not a valid journal file');
     const count = data.trades.length;
-    if (!confirm(`Import ${count} trade${count !== 1 ? 's' : ''}? This will REPLACE your current journal.`)) {
-      e.target.value = '';
-      return;
-    }
+    if (!confirm(`Import ${count} trade${count !== 1 ? 's' : ''}? REPLACES current journal.`)) { e.target.value = ''; return; }
     safeSet(TRADES_KEY, data.trades);
     if (data.settings) saveSettings(data.settings);
     if (data.alertSettings) saveAlertSettings(data.alertSettings);
@@ -3150,22 +2903,17 @@ $('importFileInput').addEventListener('change', async (e) => {
     syncAccountInputs();
     renderJournal();
     showBanner(`✅ Imported ${count} trade${count !== 1 ? 's' : ''}`, 'info');
-  } catch (err) {
-    showBanner('⚠️ Import failed: ' + err.message, 'warn');
-  } finally {
-    e.target.value = '';
-  }
+  } catch (err) { showBanner('⚠️ Import failed', 'warn'); }
+  finally { e.target.value = ''; }
 });
 
 $('pauseTradingBtn').addEventListener('click', () => {
-  if (!confirm('Pause trading for 24 hours? You can resume early but it requires typing a confirmation phrase.')) return;
+  if (!confirm('Pause trading for 24 hours?')) return;
   activateCooldown(24, 'manual');
   renderJournal();
-  showBanner('⏸️ Trading paused for 24h', 'info');
+  showBanner('⏸️ Paused for 24h', 'info');
 });
-$('cooldownCancelBtn').addEventListener('click', () => {
-  $('cooldownModal').classList.add('hidden');
-});
+$('cooldownCancelBtn').addEventListener('click', () => { $('cooldownModal').classList.add('hidden'); });
 $('cooldownResumeInput').addEventListener('input', (e) => {
   const ok = e.target.value.trim().toUpperCase() === 'I UNDERSTAND THE RISK';
   const btn = $('cooldownConfirmBtn');
@@ -3180,7 +2928,7 @@ $('cooldownConfirmBtn').addEventListener('click', () => {
   safeSet(STREAK_ACK_KEY, dd.current);
   $('cooldownModal').classList.add('hidden');
   renderJournal();
-  showBanner('▶️ Cooldown cleared. Trade carefully.', 'info');
+  showBanner('▶️ Cooldown cleared', 'info');
 });
 
 $('clearClosedBtn').addEventListener('click', () => {
@@ -3272,11 +3020,11 @@ $('nearThreshold').addEventListener('input', () => {
 });
 $('grantPermBtn').addEventListener('click', async () => {
   ensureAudio();
-  if (!('Notification' in window)) { alert('Not supported on this browser.'); return; }
+  if (!('Notification' in window)) { alert('Not supported.'); return; }
   try {
     const p = await Notification.requestPermission();
     updatePermStatus();
-    if (p === 'granted') pushNative('🔔 Alerts enabled', 'You will now receive trade alerts.', 'welcome');
+    if (p === 'granted') pushNative('🔔 Alerts enabled', 'You will receive trade alerts.', 'welcome');
   } catch (e) { alert('Error: ' + e.message); }
 });
 $('testAlertBtn').addEventListener('click', () => { fireAlert('info', '🔔 Test alert', 'If you see this and hear a tone, alerts work.', 'test'); });
@@ -3287,9 +3035,6 @@ $('cStop').addEventListener('input', calcRisk);
 document.body.addEventListener('touchstart', ensureAudio, { once: true });
 document.body.addEventListener('click', ensureAudio, { once: true });
 
-/* ============================================================
-   BOOT
-============================================================ */
 currentTimeframe = safeGet(TIMEFRAME_KEY, '1d');
 if (currentTimeframe !== '1h' && currentTimeframe !== '1d') currentTimeframe = '1d';
 document.querySelectorAll('.tf-btn').forEach(b => b.classList.toggle('active', b.dataset.tf === currentTimeframe));
