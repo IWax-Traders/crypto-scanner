@@ -243,7 +243,7 @@
   .tf-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
   .tf-label { font-size: 0.75rem; color: var(--muted); }
   .tf-toggle { display: inline-flex; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
-  .tf-btn { padding: 6px 14px; font-size: 0.75rem; font-weight: 700; background: transparent; color: var(--muted); border: none; cursor: pointer; letter-spacing: 0.3px; font-family: inherit; }
+  .tf-btn { padding: 10px 20px; font-size: 0.82rem; font-weight: 700; background: transparent; color: var(--muted); border: none; cursor: pointer; letter-spacing: 0.3px; font-family: inherit; min-width: 56px; -webkit-tap-highlight-color: rgba(59,130,246,0.2); }
   .tf-btn.active { background: var(--blue); color: #fff; }
 
   .section-title { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px; color: var(--dim); margin: 22px 0 10px; }
@@ -351,6 +351,7 @@
   .log-item.win { border-left-color: var(--green); }
   .log-item.loss { border-left-color: var(--red); }
   .log-item.warn { border-left-color: var(--amber); }
+  .log-item.setup { border-left-color: #a855f7; }
   .log-item .title { color: var(--text); font-weight: 600; }
   .log-item .time { font-size: 0.68rem; color: var(--dim); margin-top: 4px; }
   #alertBanner { position: fixed; top: 12px; left: 12px; right: 12px; padding: 14px 16px; color: #fff; font-size: 0.85rem; font-weight: 600; text-align: center; z-index: 9999; border-radius: var(--radius); line-height: 1.4; box-shadow: 0 6px 24px rgba(0,0,0,0.4); transform: translateY(calc(-100% - 24px)); opacity: 0; pointer-events: none; transition: transform 0.35s cubic-bezier(0.4,0,0.2,1), opacity 0.25s; }
@@ -359,6 +360,7 @@
   #alertBanner.loss { background: #dc2626; }
   #alertBanner.warn { background: #d97706; }
   #alertBanner.info { background: var(--blue); }
+  #alertBanner.setup { background: #7c3aed; }
   nav { position: fixed; bottom: 0; left: 0; right: 0; background: var(--surface); border-top: 1px solid var(--border); display: flex; padding: 8px 8px calc(8px + env(safe-area-inset-bottom)); z-index: 100; backdrop-filter: blur(12px); }
   nav button { flex: 1; background: transparent; border: none; padding: 8px 4px; border-radius: var(--radius-sm); color: var(--dim); font-size: 0.68rem; font-weight: 600; display: flex; flex-direction: column; align-items: center; gap: 3px; letter-spacing: 0.3px; position: relative; }
   nav button .ico { font-size: 1.15rem; line-height: 1; }
@@ -568,7 +570,7 @@
     </div>
 
     <div class="banner">
-      <b>Heads up:</b> Alerts fire while this tab is open. For notification-shade push, host this app over HTTPS and add it to your home screen.
+      <b>Heads up:</b> Alerts fire every ~55 seconds while the app is open. Keep it running on your laptop to catch fresh setups in real time.
     </div>
   </section>
 
@@ -655,6 +657,8 @@
 <script>
 const BINANCE_TICKER_URL = 'https://api.binance.com/api/v3/ticker/24hr';
 const MIN_VOLUME_USD = 1_000_000;
+const POLL_INTERVAL_MS = 55000;
+const SETUP_COOLDOWN_MS = 60 * 60 * 1000;
 
 const COIN_NAMES = {
   BTC:'Bitcoin', ETH:'Ethereum', BNB:'BNB', SOL:'Solana', XRP:'XRP',
@@ -1232,8 +1236,16 @@ async function computeIndicators(coin, timeframe) {
 
     const structure = classifyStructure(dailyCandles);
 
-    const closes = dailyCloses;
-    const volumes = dailyCandles.map(c => c.volume);
+    let closes, volumes;
+    if (timeframe === '1d') {
+      closes = dailyCloses;
+      volumes = dailyCandles.map(c => c.volume);
+    } else {
+      const hKlines = await fetchBinanceKlines(symbol, '1h', 200);
+      if (!Array.isArray(hKlines) || hKlines.length < 30) throw new Error('Not enough hourly candles');
+      closes = hKlines.map(k => parseFloat(k[4]));
+      volumes = hKlines.map(k => parseFloat(k[5]));
+    }
     const price = closes[closes.length - 1];
 
     const s50 = sma(closes, 50);
@@ -1267,7 +1279,7 @@ async function computeIndicators(coin, timeframe) {
     const returns = [];
     for (let i = 1; i < closes.length; i++) returns.push((closes[i] - closes[i - 1]) / closes[i - 1]);
     const sd = stddev(returns);
-    const dailyVol = sd != null ? sd * 100 : null;
+    const dailyVol = sd != null ? sd * (timeframe === '1d' ? 100 : Math.sqrt(24) * 100) : null;
     let volatility = 'unknown';
     if (dailyVol != null) {
       if (dailyVol < 2) volatility = 'low';
@@ -1486,6 +1498,7 @@ function playAlertSound(type) {
   if (type === 'win') { playTone(880, 0.15, 0); playTone(1320, 0.20, 0.16); }
   else if (type === 'loss') { playTone(440, 0.18, 0); playTone(300, 0.28, 0.18); }
   else if (type === 'warn') { playTone(660, 0.10, 0); playTone(660, 0.10, 0.15); playTone(660, 0.10, 0.30); }
+  else if (type === 'setup') { playTone(780, 0.12, 0); playTone(1040, 0.12, 0.14); playTone(1300, 0.18, 0.28); }
   else { playTone(520, 0.12, 0); playTone(780, 0.15, 0.13); }
 }
 function doVibrate(p) { if (navigator.vibrate) { try { navigator.vibrate(p); } catch(e){} } }
@@ -1498,7 +1511,11 @@ if ('serviceWorker' in navigator && location.protocol !== 'file:') {
 }
 async function pushNative(title, body, tag = 'crypto-general') {
   if (!('Notification' in window) || Notification.permission !== 'granted') return;
-  const opts = { body, tag, renotify: true, silent: true, icon: ICON_DATA_URL, badge: ICON_DATA_URL };
+  const opts = {
+    body, tag, renotify: true,
+    icon: ICON_DATA_URL, badge: ICON_DATA_URL,
+    requireInteraction: true
+  };
   try {
     let reg = swReg;
     if (!reg && swReady) reg = await swReady;
@@ -1510,7 +1527,7 @@ async function pushNative(title, body, tag = 'crypto-general') {
   } catch (e) {}
   try {
     const n = new Notification(title, opts);
-    setTimeout(() => { try { n.close(); } catch(e){} }, 15000);
+    setTimeout(() => { try { n.close(); } catch(e){} }, 30000);
   } catch (e) {}
 }
 let bannerTimer = null;
@@ -1519,18 +1536,19 @@ function showBanner(text, kind) {
   b.textContent = text;
   b.className = kind + ' show';
   clearTimeout(bannerTimer);
-  bannerTimer = setTimeout(() => { b.className = kind; }, 6000);
+  bannerTimer = setTimeout(() => { b.className = kind; }, 8000);
 }
 function fireAlert(kind, title, message, tag) {
   const s = loadAlertSettings();
   if (!s.enabled) return;
-  const bannerKind = kind === 'win' ? 'win' : kind === 'loss' ? 'loss' : kind === 'warn' ? 'warn' : 'info';
+  const bannerKind = kind === 'win' ? 'win' : kind === 'loss' ? 'loss' : kind === 'warn' ? 'warn' : kind === 'setup' ? 'setup' : 'info';
   showBanner(title + ' — ' + message, bannerKind);
   if (s.sound) playAlertSound(bannerKind);
   if (s.vibrate) {
     if (kind === 'win') doVibrate([120,60,120]);
     else if (kind === 'loss') doVibrate([300,100,300]);
     else if (kind === 'warn') doVibrate([80,50,80,50,80]);
+    else if (kind === 'setup') doVibrate([100,60,100,60,200]);
     else doVibrate([60,40,60]);
   }
   if (s.notify) pushNative(title, message, tag || 'crypto-general');
@@ -1786,7 +1804,7 @@ async function fetchCrypto() {
 }
 function scheduleNextFetch() {
   clearTimeout(pollTimer);
-  const delay = Math.min(90000 * Math.pow(1.5, failStreak), 900000);
+  const delay = Math.min(POLL_INTERVAL_MS * Math.pow(1.5, failStreak), 900000);
   pollTimer = setTimeout(fetchCrypto, delay);
 }
 function computePnl(t, exit) {
@@ -1871,28 +1889,49 @@ function checkNearLevels() {
 }
 function loadSeenSetups() { return safeGet(SEEN_SETUPS_KEY, {}); }
 function saveSeenSetups(s) { safeSet(SEEN_SETUPS_KEY, s); }
+
 function checkNewSetups({ silent = false } = {}) {
   const s = loadAlertSettings();
   const setups = allCoins.filter(c => !isStablecoin(c) && !isParabolic(c) && (isMomentumBurst(c) || isPullback(c)));
   if (!setups.length) return;
   const seen = loadSeenSetups();
   const now = Date.now();
-  const FOUR_HOURS = 4 * 60 * 60 * 1000;
   const newOnes = [];
+
   setups.forEach(c => {
     const key = c.symbol.toUpperCase();
-    if (now - (seen[key] || 0) > FOUR_HOURS) {
-      if (!silent && s.onSetup) newOnes.push({ symbol: key, name: c.name, setup: isMomentumBurst(c) ? 'Momentum' : 'Pullback', score: winnerScore(c) });
+    if (now - (seen[key] || 0) > SETUP_COOLDOWN_MS) {
+      if (!silent && s.onSetup) {
+        newOnes.push({
+          symbol: key,
+          name: c.name,
+          setup: isMomentumBurst(c) ? 'Momentum' : 'Pullback',
+          score: winnerScore(c),
+          price: c.current_price,
+          change: ch24(c)
+        });
+      }
       seen[key] = now;
     }
   });
   saveSeenSetups(seen);
+
+  if (newOnes.length === 0) return;
+  newOnes.sort((a, b) => b.score - a.score);
+
   if (newOnes.length === 1) {
     const o = newOnes[0];
-    fireAlert('info', `🏆 New ${o.setup}: ${o.symbol}`, `${o.name} · score ${o.score}`, 'setups');
-  } else if (newOnes.length > 1) {
-    const top = newOnes.slice().sort((a,b) => b.score - a.score)[0];
-    fireAlert('info', `🏆 ${newOnes.length} new setups`, `Top: ${top.symbol} (${top.score})`, 'setups');
+    fireAlert('setup',
+      `🏆 New ${o.setup}: ${o.symbol}`,
+      `${o.name} · score ${o.score} · ${o.change >= 0 ? '+' : ''}${o.change.toFixed(2)}%`,
+      'setup-' + o.symbol);
+  } else {
+    const top = newOnes.slice(0, 3).map(o => `${o.symbol} (${o.score})`).join(' · ');
+    const rest = newOnes.length > 3 ? ` +${newOnes.length - 3} more` : '';
+    fireAlert('setup',
+      `🏆 ${newOnes.length} new setups`,
+      `Top: ${top}${rest}`,
+      'setups-batch-' + Math.floor(now / 60000));
   }
 }
 
@@ -2854,6 +2893,21 @@ document.body.addEventListener('click', e => {
   if (head) { verdictExpanded = !verdictExpanded; renderVerdict(); }
 });
 
+document.querySelectorAll('.tf-btn').forEach(btn => {
+  btn.classList.toggle('active', btn.dataset.tf === currentTimeframe);
+});
+document.querySelector('.tf-toggle')?.addEventListener('click', e => {
+  const btn = e.target.closest('.tf-btn');
+  if (!btn) return;
+  if (btn.dataset.tf === currentTimeframe) return;
+  document.querySelectorAll('.tf-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  currentTimeframe = btn.dataset.tf;
+  safeSet(TIMEFRAME_KEY, currentTimeframe);
+  showBanner(`Timeframe: ${currentTimeframe.toUpperCase()} — loading hourly data…`, 'info');
+  renderCoinList();
+});
+
 $('search').addEventListener('input', renderCoinList);
 $('refreshBtn').addEventListener('click', fetchCrypto);
 $('jCoin').addEventListener('input', autoFillTrade);
@@ -3024,10 +3078,10 @@ $('grantPermBtn').addEventListener('click', async () => {
   try {
     const p = await Notification.requestPermission();
     updatePermStatus();
-    if (p === 'granted') pushNative('🔔 Alerts enabled', 'You will receive trade alerts.', 'welcome');
+    if (p === 'granted') pushNative('🔔 Alerts enabled', 'You will receive trade and setup alerts.', 'welcome');
   } catch (e) { alert('Error: ' + e.message); }
 });
-$('testAlertBtn').addEventListener('click', () => { fireAlert('info', '🔔 Test alert', 'If you see this and hear a tone, alerts work.', 'test'); });
+$('testAlertBtn').addEventListener('click', () => { fireAlert('setup', '🔔 Test alert', 'If you see this, hear a tone, and get a phone notification, alerts work.', 'test'); });
 $('clearLogBtn').addEventListener('click', () => { if (!confirm('Clear alert history?')) return; saveAlertLog([]); renderAlertLog(); });
 $('cCalcBtn').addEventListener('click', calcRisk);
 $('cEntry').addEventListener('input', calcRisk);
@@ -3048,7 +3102,7 @@ renderVerdict();
 setInterval(() => {
   if (currentView === 'journal' && isCooldownActive()) renderCooldownPanel();
   if (currentView === 'scan') renderVerdict();
-}, 60000);
+}, POLL_INTERVAL_MS);
 </script>
 </body>
 </html>
