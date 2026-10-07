@@ -379,7 +379,7 @@
   .period-tabs { display: flex; gap: 6px; margin-bottom: 12px; }
   .period-tabs button { flex: 1; padding: 8px 0; font-size: 0.78rem; background: var(--surface); color: var(--muted); border: 1px solid var(--border); border-radius: var(--radius-sm); font-weight: 600; }
   .period-tabs button.active { background: var(--blue); color: #fff; border-color: var(--blue); }
-  #chartContainer { background: var(--surface); border: 1px solid var(--border-soft); border-radius: var(--radius); padding: 8px; margin-bottom: 14px; min-height: 320px; position: relative; }
+  #chartContainer { background: var(--surface); border: 1px solid var(--border-soft); border-radius: var(--radius); padding: 8px; margin-bottom: 14px; min-height: 400px; position: relative; }
   #chartContainer .chart-status { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; color: var(--muted); font-size: 0.85rem; pointer-events: none; }
   .legend { display: flex; gap: 14px; font-size: 0.72rem; color: var(--muted); margin-bottom: 12px; flex-wrap: wrap; }
   .legend .item { display: flex; align-items: center; gap: 5px; }
@@ -588,11 +588,11 @@
     </div>
 
     <div class="period-tabs" id="periodTabs">
+      <button data-period="15m">15m</button>
       <button data-period="1h">1H</button>
-      <button data-period="1">1D</button>
-      <button data-period="7" class="active">7D</button>
-      <button data-period="30">30D</button>
-      <button data-period="90">90D</button>
+      <button data-period="4h">4H</button>
+      <button data-period="1d" class="active">1D</button>
+      <button data-period="1w">1W</button>
     </div>
 
     <div id="chartContainer">
@@ -1710,7 +1710,6 @@ function renderCoinList() {
     const [e, t, s] = msgs[currentFilter] || msgs.winners;
     el.innerHTML = explainer + `<div class="empty"><span class="emoji">${e}</span><b>${t}</b><br>${s}</div>`;
     renderMarketBanner();
-    // Still enrich candidates so verification can complete
     const toEnrich = currentFilter === 'winners'
       ? allCoins.filter(c => !isStablecoin(c) && (isMomentumBurst(c) || isPullback(c))).slice(0, 40)
       : [];
@@ -1722,7 +1721,6 @@ function renderCoinList() {
   el.innerHTML = explainer + list.map(c => coinCardHTML(c, highlight)).join('');
   renderMarketBanner();
 
-  // Enrich candidates even when the verdict-filter removed them, so verification can complete
   let toEnrich;
   if (currentFilter === 'winners') {
     toEnrich = allCoins
@@ -1866,7 +1864,6 @@ async function autoCloseTrades({ silent = false } = {}) {
         }
       }
     } catch (e) {
-      // Network error. Fallback to current price only.
     }
 
     if (c.current_price > highSinceOpen) highSinceOpen = c.current_price;
@@ -2618,9 +2615,10 @@ function switchView(view) {
 
 let currentChart = null;
 let currentChartSeries = null;
+let currentVolumeSeries = null;
 let currentDetailSymbol = null;
 let currentDetailId = null;
-let currentPeriod = 7;
+let currentPeriod = '1d';
 let chartReqId = 0;
 let detailPushedState = false;
 let leavingDetailTo = null;
@@ -2633,28 +2631,30 @@ function pruneChartCache() {
   keys.sort((a, b) => chartCache[a].ts - chartCache[b].ts);
   keys.slice(0, keys.length - MAX).forEach(k => delete chartCache[k]);
 }
+
 function openCoinDetail(symbol, coinId) {
   const coin = findCoinLive(symbol, coinId);
   if (!coin) return;
   currentDetailSymbol = coin.symbol;
   currentDetailId = coin.id;
-  currentPeriod = 7;
+  currentPeriod = '1d';
   $('dName').textContent = coin.name;
   $('dSymbol').textContent = coin.symbol.toUpperCase() + ' · #' + (coin.market_cap_rank ?? '—');
   $('dPrice').textContent = price(coin.current_price);
   const a = ch24(coin);
   $('dChange').textContent = (a >= 0 ? '+' : '') + a.toFixed(2) + '% (24h)';
   $('dChange').className = 'change ' + (a > 0 ? 'up' : a < 0 ? 'down' : 'flat');
-  document.querySelectorAll('#periodTabs button').forEach(b => b.classList.toggle('active', b.dataset.period === '7'));
+  document.querySelectorAll('#periodTabs button').forEach(b => b.classList.toggle('active', b.dataset.period === '1d'));
   document.querySelectorAll('nav button').forEach(b => b.classList.remove('active'));
   document.querySelectorAll('.view').forEach(v => v.classList.toggle('active', v.id === 'view-detail'));
   currentView = 'detail';
   window.scrollTo({ top: 0 });
   try { history.pushState({ detail: coin.symbol }, '', '#' + coin.symbol); detailPushedState = true; }
   catch (e) { detailPushedState = false; }
-  loadChart(coin, 7);
+  loadChart(coin, '1d');
   renderDetailStats(coin);
 }
+
 async function openCoinFromJournal(symbol, coinId) {
   let coin = findCoinLive(symbol, coinId);
   if (!coin) {
@@ -2684,52 +2684,69 @@ async function openCoinFromJournal(symbol, coinId) {
   if (!coin) { showBanner(`⚠️ ${symbol.toUpperCase()} not found`, 'warn'); return; }
   openCoinDetail(coin.symbol, coin.id);
 }
-async function loadChart(coin, days) {
+
+async function loadChart(coin, period) {
   const myId = ++chartReqId;
   const statusEl = $('chartStatus');
   statusEl.textContent = 'Loading chart…';
   statusEl.style.display = 'flex';
-  const cacheKey = coin.id + '_' + days;
+  const cacheKey = coin.id + '_' + period;
   const cached = chartCache[cacheKey];
   const FIVE_MIN = 5 * 60 * 1000;
-  if (cached && Date.now() - cached.ts < FIVE_MIN) { if (myId !== chartReqId) return; renderChart(coin, cached.data); return; }
+  if (cached && Date.now() - cached.ts < FIVE_MIN) {
+    if (myId !== chartReqId) return;
+    renderChart(coin, cached.data);
+    return;
+  }
   try {
     const symbol = coin.symbol.toUpperCase() + 'USDT';
     let interval, limit;
-    if (days === '1h')       { interval = '5m'; limit = 60; }
-    else if (days === 1)     { interval = '15m'; limit = 96; }
-    else if (days === 7)     { interval = '1h'; limit = 168; }
-    else if (days === 30)    { interval = '4h'; limit = 180; }
-    else                     { interval = '1d'; limit = 90; }
+    if (period === '15m')      { interval = '15m'; limit = 200; }
+    else if (period === '1h')  { interval = '1h';  limit = 200; }
+    else if (period === '4h')  { interval = '4h';  limit = 200; }
+    else if (period === '1d')  { interval = '1d';  limit = 200; }
+    else                       { interval = '1w';  limit = 150; }
     const klines = await fetchBinanceKlines(symbol, interval, limit);
     if (myId !== chartReqId) return;
     if (!Array.isArray(klines) || !klines.length) throw new Error('No data');
-    const series = klines.map(k => ({ time: Math.floor(parseInt(k[0]) / 1000), value: parseFloat(k[4]) }));
     const seen = new Set();
-    const clean = [];
-    series.forEach(p => { if (!seen.has(p.time)) { seen.add(p.time); clean.push(p); } });
-    chartCache[cacheKey] = { data: clean, ts: Date.now() };
+    const candles = [];
+    klines.forEach(k => {
+      const time = Math.floor(parseInt(k[0]) / 1000);
+      if (seen.has(time)) return;
+      seen.add(time);
+      candles.push({
+        time,
+        open: parseFloat(k[1]),
+        high: parseFloat(k[2]),
+        low: parseFloat(k[3]),
+        close: parseFloat(k[4]),
+        volume: parseFloat(k[5])
+      });
+    });
+    chartCache[cacheKey] = { data: candles, ts: Date.now() };
     pruneChartCache();
     if (myId !== chartReqId) return;
-    renderChart(coin, clean);
+    renderChart(coin, candles);
   } catch (e) {
     if (myId !== chartReqId) return;
     statusEl.textContent = 'Could not load chart. Tap a period tab to retry.';
     statusEl.style.display = 'flex';
   }
 }
-function renderChart(coin, series) {
+
+function renderChart(coin, candles) {
   const container = $('chartContainer');
   const statusEl = $('chartStatus');
   statusEl.style.display = 'none';
-  if (currentChart) { try { currentChart.remove(); } catch(e) {} currentChart = null; currentChartSeries = null; }
+  if (currentChart) { try { currentChart.remove(); } catch(e) {} currentChart = null; currentChartSeries = null; currentVolumeSeries = null; }
   if (typeof LightweightCharts === 'undefined') {
     statusEl.textContent = 'Chart library failed to load.';
     statusEl.style.display = 'flex';
     return;
   }
   const w = Math.max(280, container.clientWidth - 16);
-  const h = 320;
+  const h = 400;
   const p = coin.current_price;
   const precision = p < 0.01 ? 8 : 4;
   const minMove = Math.pow(10, -precision);
@@ -2738,14 +2755,35 @@ function renderChart(coin, series) {
       width: w, height: h,
       layout: { background: { color: '#131720' }, textColor: '#8a94a6', fontSize: 11 },
       grid: { vertLines: { color: '#1a1f2b' }, horzLines: { color: '#1a1f2b' } },
-      rightPriceScale: { borderColor: '#222838' },
-      timeScale: { borderColor: '#222838', timeVisible: true, secondsVisible: false }
+      rightPriceScale: { borderColor: '#222838', scaleMargins: { top: 0.08, bottom: 0.28 } },
+      timeScale: { borderColor: '#222838', timeVisible: true, secondsVisible: false },
+      crosshair: { mode: LightweightCharts.CrosshairMode.Normal }
     });
-    currentChartSeries = currentChart.addAreaSeries({
-      lineColor: '#3b82f6', topColor: 'rgba(59,130,246,0.35)', bottomColor: 'rgba(59,130,246,0.02)', lineWidth: 2,
+
+    currentChartSeries = currentChart.addCandlestickSeries({
+      upColor: '#22c55e', downColor: '#ef4444',
+      borderUpColor: '#22c55e', borderDownColor: '#ef4444',
+      wickUpColor: '#22c55e', wickDownColor: '#ef4444',
       priceFormat: { type: 'price', precision: precision, minMove: minMove }
     });
-    currentChartSeries.setData(series);
+    currentChartSeries.setData(candles.map(c => ({
+      time: c.time, open: c.open, high: c.high, low: c.low, close: c.close
+    })));
+
+    currentVolumeSeries = currentChart.addHistogramSeries({
+      priceFormat: { type: 'volume' },
+      priceScaleId: 'vol',
+      color: '#3b82f6'
+    });
+    currentVolumeSeries.priceScale().applyOptions({
+      scaleMargins: { top: 0.78, bottom: 0 }
+    });
+    currentVolumeSeries.setData(candles.map(c => ({
+      time: c.time,
+      value: c.volume,
+      color: c.close >= c.open ? 'rgba(34,197,94,0.5)' : 'rgba(239,68,68,0.5)'
+    })));
+
     currentChart.timeScale().fitContent();
   } catch (err) {
     statusEl.textContent = 'Chart error.';
@@ -2753,6 +2791,7 @@ function renderChart(coin, series) {
     if (currentChart) { try { currentChart.remove(); } catch(e) {} currentChart = null; }
     return;
   }
+
   const trades = loadTrades().filter(t => t.coin === coin.symbol.toUpperCase() && t.status === 'open');
   const t = trades[0];
   const legendEl = $('chartLegend');
@@ -2769,6 +2808,7 @@ function renderChart(coin, series) {
       <div class="item"><span class="swatch" style="background:#22c55e"></span>Target ${price(t.target)}</div>
     `;
   }
+
   if (window._chartResizeHandler) window.removeEventListener('resize', window._chartResizeHandler);
   window._chartResizeHandler = () => {
     if (currentChart && container) { try { currentChart.applyOptions({ width: Math.max(280, container.clientWidth - 16) }); } catch(e) {} }
@@ -2867,7 +2907,7 @@ function renderDetailStats(coin) {
 }
 
 function cleanupDetailChart() {
-  if (currentChart) { try { currentChart.remove(); } catch(e) {} currentChart = null; currentChartSeries = null; }
+  if (currentChart) { try { currentChart.remove(); } catch(e) {} currentChart = null; currentChartSeries = null; currentVolumeSeries = null; }
   currentDetailSymbol = null; currentDetailId = null;
 }
 function exitDetail(to = 'scan') {
@@ -2891,12 +2931,12 @@ function openJournalForDetailCoin() {
   $('jCoin').value = sym || '';
   autoFillTrade();
 }
+
 document.querySelectorAll('#periodTabs button').forEach(b => {
   b.addEventListener('click', () => {
     document.querySelectorAll('#periodTabs button').forEach(x => x.classList.remove('active'));
     b.classList.add('active');
-    const raw = b.dataset.period;
-    currentPeriod = (raw === '1h') ? '1h' : Number(raw);
+    currentPeriod = b.dataset.period;
     const coin = findCoinLive(currentDetailSymbol, currentDetailId);
     if (coin) loadChart(coin, currentPeriod);
   });
