@@ -1676,15 +1676,7 @@ function renderCoinList() {
   else if (currentFilter === 'all') list = allCoins;
   else {
     const base = allCoins.filter(c => isMomentumBurst(c) || isPullback(c));
-    const passing = base.filter(c => {
-      const ind = getInd(c);
-      if (!ind) return true;
-      if (ind.error) return true;
-      if (ind.structure && structureBadge(ind.structure)) return false;
-      const rc = hasRoomToRun(c);
-      if (rc && !rc.pass) return false;
-      return true;
-    });
+    const passing = base.filter(c => tradeVerdict(c).verdict === 'TRADE');
     winnersFilteredCount = base.length - passing.length;
     list = passing;
   }
@@ -1697,7 +1689,7 @@ function renderCoinList() {
 
   let explainer = '';
   if (currentFilter === 'winners') {
-    explainer = `<div class="banner" style="border-left-color:var(--amber);margin-bottom:16px"><b>Winners are pre-filtered.</b> Only coins passing structure and room-to-run. Verdict shown at the top of each card.</div>`;
+    explainer = `<div class="banner" style="border-left-color:var(--amber);margin-bottom:16px"><b>Winners are fully filtered.</b> Only coins passing every code-checkable rule. Eyeball the chart before you trade.</div>`;
   } else if (currentFilter === 'confluence') {
     explainer = `<div class="banner" style="border-left-color:var(--green);margin-bottom:16px"><b>✨ Confluence filter.</b> Only 3+ of: Trend UP · Strong Momentum · High Volume · Green EV · Clean Structure.</div>`;
   } else if (currentFilter === 'watchlist') {
@@ -1712,12 +1704,17 @@ function renderCoinList() {
       confluence: ['✨', 'No confluence setups yet.', 'Coins must meet 3 of 5.'],
       all: ['📊', 'No coins found.', 'Try refreshing.'],
       winners: winnersFilteredCount > 0
-        ? ['🚫', `${winnersFilteredCount} setup${winnersFilteredCount !== 1 ? 's' : ''} filtered out`, 'All failed structure or room-to-run.']
+        ? ['🚫', `${winnersFilteredCount} setup${winnersFilteredCount !== 1 ? 's' : ''} filtered out`, 'All failed one or more of the 7 checks.']
         : ['🏆', 'No qualified setups right now.', 'This is normal. Wait.']
     };
     const [e, t, s] = msgs[currentFilter] || msgs.winners;
     el.innerHTML = explainer + `<div class="empty"><span class="emoji">${e}</span><b>${t}</b><br>${s}</div>`;
     renderMarketBanner();
+    // Still enrich candidates so verification can complete
+    const toEnrich = currentFilter === 'winners'
+      ? allCoins.filter(c => !isStablecoin(c) && (isMomentumBurst(c) || isPullback(c))).slice(0, 40)
+      : [];
+    if (toEnrich.length) enrichCoins(toEnrich);
     return;
   }
 
@@ -1725,7 +1722,19 @@ function renderCoinList() {
   el.innerHTML = explainer + list.map(c => coinCardHTML(c, highlight)).join('');
   renderMarketBanner();
 
-  const toEnrich = list.slice(0, 40);
+  // Enrich candidates even when the verdict-filter removed them, so verification can complete
+  let toEnrich;
+  if (currentFilter === 'winners') {
+    toEnrich = allCoins
+      .filter(c => !isStablecoin(c) && (isMomentumBurst(c) || isPullback(c)))
+      .slice(0, 40);
+  } else if (currentFilter === 'confluence') {
+    toEnrich = allCoins
+      .filter(c => !isStablecoin(c))
+      .slice(0, 40);
+  } else {
+    toEnrich = list.slice(0, 40);
+  }
   if (toEnrich.length) enrichCoins(toEnrich);
 }
 
@@ -2777,8 +2786,13 @@ function structureBlockHTML(structure) {
   const chochLabel = structure.choch === 'bull' ? '🔄 Bullish reversal signal' : structure.choch === 'bear' ? '🔄 Bearish reversal signal' : '— none';
   const posLabel = structure.position === 'premium' ? '🔺 Premium (near top)' : structure.position === 'discount' ? '🔻 Discount (near bottom)' : '⚖️ Equilibrium';
   const posColor = structure.position === 'premium' ? 'var(--amber)' : structure.position === 'discount' ? 'var(--green)' : 'var(--muted)';
-  const distRes = structure.distToResistance != null ? `${structure.distToResistance.toFixed(2)}%` : '—';
-  const distSup = structure.distToSupport != null ? `${structure.distToSupport.toFixed(2)}%` : '—';
+
+  const resLine = (structure.lastHigh != null && structure.distToResistance != null)
+    ? `${price(structure.lastHigh)} · ${structure.distToResistance.toFixed(2)}%`
+    : '—';
+  const supLine = (structure.lastLow != null && structure.distToSupport != null)
+    ? `${price(structure.lastLow)} · ${structure.distToSupport.toFixed(2)}%`
+    : '—';
 
   return `
     <div class="block">
@@ -2787,8 +2801,8 @@ function structureBlockHTML(structure) {
       <div class="bd-row"><span class="k">Break of structure</span><span class="v">${bosLabel}</span></div>
       <div class="bd-row"><span class="k">Change of character</span><span class="v">${chochLabel}</span></div>
       <div class="bd-row"><span class="k">Position in range</span><span class="v" style="color:${posColor}">${posLabel}</span></div>
-      <div class="bd-row"><span class="k">Resistance above</span><span class="v">${distRes}</span></div>
-      <div class="bd-row"><span class="k">Support below</span><span class="v">${distSup}</span></div>
+      <div class="bd-row"><span class="k">Resistance above</span><span class="v">${resLine}</span></div>
+      <div class="bd-row"><span class="k">Support below</span><span class="v">${supLine}</span></div>
     </div>`;
 }
 
