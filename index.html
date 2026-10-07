@@ -904,7 +904,8 @@ function structureBadge(s) {
 
 function hasRoomToRun(c) {
   const ind = getInd(c);
-  if (!ind || !ind.structure || ind.high7d == null) return null;
+  if (!ind || ind.error) return null;
+  if (!ind.structure || ind.high7d == null) return null;
   const s = ind.structure;
   const price = c.current_price;
 
@@ -919,6 +920,7 @@ function hasRoomToRun(c) {
 function tradeVerdict(c) {
   const ind = getInd(c);
   if (!ind) return { verdict: 'WAIT', reason: 'Still loading…', cls: 'loading' };
+  if (ind.error) return { verdict: 'WAIT', reason: 'Data unavailable', cls: 'loading' };
 
   const reasons = [];
 
@@ -1367,7 +1369,7 @@ function qualityScore35(c) {
 function confluenceScore(c) {
   const ind = getInd(c);
   let trendPts = 12, momentumPts = 12, volumePts = 7;
-  if (ind) {
+  if (ind && !ind.error) {
     if (ind.trend === 'up') trendPts = 25;
     else if (ind.trend === 'up-partial') trendPts = 18;
     else if (ind.trend === 'down') trendPts = 0;
@@ -1384,13 +1386,13 @@ function confluenceScore(c) {
   const base = qualityScore35(c);
   let total = trendPts + momentumPts + volumePts + base;
   if (isParabolic(c)) total *= 0.5;
-  if (ind && ind.structure) total *= structureMultiplier(ind.structure);
+  if (ind && !ind.error && ind.structure) total *= structureMultiplier(ind.structure);
   return Math.max(0, Math.min(100, Math.round(total)));
 }
 function winnerScore(c) { return confluenceScore(c); }
 function confluenceCount(c) {
   const ind = getInd(c);
-  if (!ind) return 0;
+  if (!ind || ind.error) return 0;
   let n = 0;
   if (ind.trend === 'up' || ind.trend === 'up-partial') n++;
   if (ind.momentum === 'strong') n++;
@@ -1425,7 +1427,7 @@ function estimateWinChance(c) {
   if (rank <= 20) logOdds += 0.2;
   else if (rank >= 100) logOdds -= 0.3;
   const ind = getInd(c);
-  if (ind && ind.structure) {
+  if (ind && !ind.error && ind.structure) {
     if (ind.structure.trend === 'up') logOdds += 0.2;
     else if (ind.structure.trend === 'down') logOdds -= 0.6;
     if (ind.structure.choch === 'bear') logOdds -= 0.4;
@@ -1585,7 +1587,7 @@ function coinCardHTML(c, highlight) {
   if (isPullback(c)) setupBadge = '<span class="sig-badge pullback">📉 Pullback</span>';
 
   let trendBadge = '';
-  if (ind) {
+  if (ind && !ind.error) {
     if (ind.trend === 'up' || ind.trend === 'up-partial') trendBadge = '<span class="trend-pill up">↗ UP</span>';
     else if (ind.trend === 'down' || ind.trend === 'down-partial') trendBadge = '<span class="trend-pill down">↘ DOWN</span>';
   }
@@ -1677,6 +1679,7 @@ function renderCoinList() {
     const passing = base.filter(c => {
       const ind = getInd(c);
       if (!ind) return true;
+      if (ind.error) return true;
       if (ind.structure && structureBadge(ind.structure)) return false;
       const rc = hasRoomToRun(c);
       if (rc && !rc.pass) return false;
@@ -1783,7 +1786,7 @@ async function fetchCrypto() {
     allCoins = transformed;
 
     renderCoinList();
-    autoCloseTrades({ silent: !firstFetchDone });
+    await autoCloseTrades({ silent: !firstFetchDone });
     checkNearLevels();
     checkNewSetups({ silent: !firstFetchDone });
     if (currentView === 'journal') renderJournal();
@@ -1815,51 +1818,89 @@ function computePnl(t, exit) {
 function loadTrades() { return safeGet(TRADES_KEY, []); }
 function saveTrades(t) { safeSet(TRADES_KEY, t); }
 
-function autoCloseTrades({ silent = false } = {}) {
+async function autoCloseTrades({ silent = false } = {}) {
   const trades = loadTrades();
-  let changed = false;
   const s = loadAlertSettings();
-  trades.forEach(t => {
-    if (t.status !== 'open') return;
+  let anyChanged = false;
+
+  for (let i = 0; i < trades.length; i++) {
+    const t = trades[i];
+    if (t.status !== 'open') continue;
     const c = findCoinLive(t.coin, t.coinId);
-    if (!c) return;
+    if (!c) continue;
 
-    if (t.highSinceOpen == null) t.highSinceOpen = c.high_24h;
-    if (t.lowSinceOpen == null) t.lowSinceOpen = c.low_24h;
-    t.highSinceOpen = Math.max(t.highSinceOpen, c.high_24h);
-    t.lowSinceOpen = Math.min(t.lowSinceOpen, c.low_24h);
-    changed = true;
+    let highSinceOpen = c.current_price;
+    let lowSinceOpen = c.current_price;
 
-    const hitTarget = t.highSinceOpen >= t.target;
-    const hitStop = t.lowSinceOpen <= t.stop;
+    try {
+      const openTime = new Date(t.date).getTime();
+      if (isFinite(openTime)) {
+        const symbol = t.coin.toUpperCase() + 'USDT';
+        const klines = await fetchBinanceKlines(symbol, '5m', 1000);
+        if (Array.isArray(klines) && klines.length) {
+          let found = false;
+          for (const k of klines) {
+            const kt = parseInt(k[0], 10);
+            if (kt >= openTime) {
+              const h = parseFloat(k[2]);
+              const l = parseFloat(k[3]);
+              if (!found) {
+                highSinceOpen = h;
+                lowSinceOpen = l;
+                found = true;
+              } else {
+                if (h > highSinceOpen) highSinceOpen = h;
+                if (l < lowSinceOpen) lowSinceOpen = l;
+              }
+            }
+          }
+        }
+      }
+    } catch (e) {
+      // Network error. Fallback to current price only.
+    }
 
-    if (hitStop && hitTarget) {
-      t.exit = t.stop; t.status = 'loss';
-      t.closeDate = new Date().toISOString(); t.autoClosed = 'stop';
+    if (c.current_price > highSinceOpen) highSinceOpen = c.current_price;
+    if (c.current_price < lowSinceOpen) lowSinceOpen = c.current_price;
+
+    if (t.highSinceOpen !== highSinceOpen || t.lowSinceOpen !== lowSinceOpen) {
+      t.highSinceOpen = highSinceOpen;
+      t.lowSinceOpen = lowSinceOpen;
+      anyChanged = true;
+    }
+
+    const hitTarget = highSinceOpen >= t.target;
+    const hitStop = lowSinceOpen <= t.stop;
+
+    if (hitStop) {
+      t.exit = t.stop;
+      t.status = 'loss';
+      t.closeDate = new Date().toISOString();
+      t.autoClosed = 'stop';
       t.pnl = computePnl(t, t.stop);
       t.pnlPct = ((t.stop - t.entry) / t.entry) * 100;
-      if (s.onClose && !silent) fireAlert('loss', `🛑 ${t.coin} stopped out`, `Loss ${money(Math.abs(t.pnl))}`, 'trade-' + t.coin);
-    } else if (hitStop) {
-      t.exit = t.stop; t.status = 'loss';
-      t.closeDate = new Date().toISOString(); t.autoClosed = 'stop';
-      t.pnl = computePnl(t, t.stop);
-      t.pnlPct = ((t.stop - t.entry) / t.entry) * 100;
+      anyChanged = true;
       if (s.onClose && !silent) fireAlert('loss', `🛑 ${t.coin} stopped out`, `Loss ${money(Math.abs(t.pnl))}`, 'trade-' + t.coin);
     } else if (hitTarget) {
-      t.exit = t.target; t.status = 'win';
-      t.closeDate = new Date().toISOString(); t.autoClosed = 'target';
+      t.exit = t.target;
+      t.status = 'win';
+      t.closeDate = new Date().toISOString();
+      t.autoClosed = 'target';
       t.pnl = computePnl(t, t.target);
       t.pnlPct = ((t.target - t.entry) / t.entry) * 100;
+      anyChanged = true;
       if (s.onClose && !silent) fireAlert('win', `✅ ${t.coin} hit target`, `Profit +${money(t.pnl)}`, 'trade-' + t.coin);
     }
-  });
-  if (changed) {
+  }
+
+  if (anyChanged) {
     saveTrades(trades);
     checkStreakCooldown();
     if (currentView === 'journal') renderJournal();
     if (currentView === 'scan') renderCoinList();
   }
 }
+
 function checkNearLevels() {
   const s = loadAlertSettings();
   if (!s.nearStop && !s.nearTarget) return;
@@ -2003,8 +2044,8 @@ function autoFillTrade() {
   const entry = c.current_price;
   const ind = getInd(c);
   let stopPct = setup === 'Momentum' ? 0.02 : 0.03;
-  if (ind && ind.volatility === 'high') stopPct *= 1.5;
-  else if (ind && ind.volatility === 'low') stopPct *= 0.8;
+  if (ind && !ind.error && ind.volatility === 'high') stopPct *= 1.5;
+  else if (ind && !ind.error && ind.volatility === 'low') stopPct *= 0.8;
 
   const targetPct = setup === 'Momentum' ? 0.045 : 0.035;
   const stop = entry * (1 - stopPct);
@@ -2019,10 +2060,10 @@ function autoFillTrade() {
   $('jSize').value = posValue.toFixed(2);
 
   const rrr = (targetPct / stopPct).toFixed(2);
-  const volNote = ind && ind.volatility === 'high' ? '<br><span style="color:#f87171">⚠️ High volatility — wider stop.</span>' : '';
+  const volNote = ind && !ind.error && ind.volatility === 'high' ? '<br><span style="color:#f87171">⚠️ High volatility — wider stop.</span>' : '';
   const parabNote = isParabolic(c) ? '<br><span style="color:#f87171">⚠️ Parabolic move.</span>' : '';
   let structNote = '';
-  if (ind && ind.structure) {
+  if (ind && !ind.error && ind.structure) {
     const sb = structureBadge(ind.structure);
     if (sb) structNote = `<br><span style="color:#f87171">${sb.label}</span>`;
   }
@@ -2058,8 +2099,8 @@ function addTrade() {
     setup, entry, stop, target, size, notes,
     status: 'open', exit: null, pnl: null,
     alertedStop: false, alertedTarget: false,
-    highSinceOpen: live ? live.high_24h : entry,
-    lowSinceOpen: live ? live.low_24h : entry
+    highSinceOpen: entry,
+    lowSinceOpen: entry
   });
   saveTrades(trades);
   fireAlert('info', `📝 ${coin} logged`, `${setup} · Entry ${price(entry)}`, 'journal');
@@ -2764,14 +2805,14 @@ function renderDetailStats(coin) {
 
   const tags = [];
   if (stable) tags.push('<span class="tag stable">Stablecoin</span>');
-  if (isMom && ind && ind.momentum === 'strong') tags.push('<span class="sig-badge momentum-strong">⚡ Strong Momentum</span>');
+  if (isMom && ind && !ind.error && ind.momentum === 'strong') tags.push('<span class="sig-badge momentum-strong">⚡ Strong Momentum</span>');
   else if (isMom) tags.push('<span class="sig-badge momentum">🚀 Momentum</span>');
   if (isPull) tags.push('<span class="sig-badge pullback">📉 Pullback</span>');
   if (parabolic) tags.push('<span class="sig-badge" style="background:rgba(239,68,68,0.2);color:#fca5a5">⚠️ Parabolic</span>');
   if (!stable && !isMom && !isPull) tags.push('<span class="tag open">No setup</span>');
 
   let trendBadge = '';
-  if (ind) {
+  if (ind && !ind.error) {
     if (ind.trend === 'up') trendBadge = '<span class="trend-pill up">↗ Trend UP</span>';
     else if (ind.trend === 'up-partial') trendBadge = '<span class="trend-pill up">↗ Above 50MA</span>';
     else if (ind.trend === 'down') trendBadge = '<span class="trend-pill down">↘ Trend DOWN</span>';
@@ -2781,7 +2822,7 @@ function renderDetailStats(coin) {
 
   const a = ch24(coin), w = ch7(coin), m = ch30(coin);
   const confCount = confluenceCount(coin);
-  const volText = ind && ind.dailyVol != null ? `~${ind.dailyVol.toFixed(1)}% / day` : '—';
+  const volText = ind && !ind.error && ind.dailyVol != null ? `~${ind.dailyVol.toFixed(1)}% / day` : '—';
   const w7Display = has7d(coin) ? `${w >= 0 ? '+' : ''}${w.toFixed(2)}%` : '—';
   const m30Display = has30d(coin) ? `${m >= 0 ? '+' : ''}${m.toFixed(2)}%` : '—';
 
@@ -2808,7 +2849,7 @@ function renderDetailStats(coin) {
       <div class="bd-row"><span class="k">Expected value / $1 risked</span><span class="v" style="color:${ev >= 0 ? 'var(--green)' : 'var(--red)'}">${ev >= 0 ? '+' : ''}$${ev.toFixed(2)}</span></div>
       <div class="bd-row"><span class="k">Room to run</span><span class="v" style="color:${roomColor}">${roomText}</span></div>
     </div>
-    ${structureBlockHTML(ind && ind.structure)}`;
+    ${structureBlockHTML(ind && !ind.error ? ind.structure : null)}`;
 }
 
 function cleanupDetailChart() {
